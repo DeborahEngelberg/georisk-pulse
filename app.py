@@ -19,6 +19,23 @@ from scheduler import run_daily_pipeline, run_sentiment_pipeline, run_social_pip
 app = Flask(__name__)
 init_db()
 
+# Auto-populate on first start (works under both gunicorn and python app.py)
+def _bootstrap():
+    """Run backfills if DB is empty — called once at startup."""
+    if not get_scores_last_n_days(1):
+        print("No risk data — running initial pipeline...")
+        run_daily_pipeline()
+    if not get_sentiment_by_group("Israel", "outlet"):
+        print("No sentiment data — running sentiment backfill...")
+        from backfill_sentiment import backfill_sentiment
+        backfill_sentiment()
+    if not get_social_by_group("Israel", "country"):
+        print("No social data — running social backfill...")
+        from backfill_social import backfill_social
+        backfill_social()
+
+_bootstrap()
+
 sched = BackgroundScheduler(daemon=True)
 sched.add_job(run_daily_pipeline, "cron", hour=6, minute=0, id="daily_pipeline")
 sched.add_job(run_sentiment_pipeline, "cron", hour=6, minute=15, id="sentiment_pipeline")
@@ -203,10 +220,5 @@ def trigger_social():
 
 
 if __name__ == "__main__":
-    if not get_scores_last_n_days(1):
-        run_daily_pipeline()
-    if not get_sentiment_by_group("Israel", "outlet"):
-        run_sentiment_pipeline()
-
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=os.environ.get("FLASK_DEBUG", "0") == "1")
