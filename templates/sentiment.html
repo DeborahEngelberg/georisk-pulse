@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoRisk Pulse — {{ "Medienanalyse" if lang == "de" else "Media Analysis" }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script src="/static/translations.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="header-brand">GeoRisk Pulse</div>
+        <div class="header-right">
+            <div class="header-meta"><span class="live"></span>{{ "Medienanalyse" if lang == "de" else "Media Analysis" }}</div>
+            <button class="lang-toggle" onclick="toggleLang()">{% if lang == 'de' %}EN{% else %}DE{% endif %}</button>
+        </div>
+    </div>
+
+    <nav class="tab-bar">
+        <a href="/?lang={{ lang }}" class="tab {% if active_tab == 'risk' %}tab-active{% endif %}">{{ "Risikoeinschätzung" if lang == "de" else "Risk Scores" }}</a>
+        <a href="/sentiment?lang={{ lang }}" class="tab {% if active_tab == 'sentiment' %}tab-active{% endif %}">{{ "Medienanalyse" if lang == "de" else "Media Analysis" }}</a>
+        <a href="/social?lang={{ lang }}" class="tab {% if active_tab == 'social' %}tab-active{% endif %}">{{ "Öffentliche Meinung" if lang == "de" else "Public Opinion" }}</a>
+    </nav>
+
+    <div class="topic-selector">
+        <button class="topic-btn active" onclick="switchTopic('Israel', this)">Israel</button>
+        <button class="topic-btn" onclick="switchTopic('US attack on Iran', this)">{{ "US–Iran-Konflikt" if lang == "de" else "US–Iran Conflict" }}</button>
+    </div>
+
+    <div class="reading-guide" id="readingGuide"></div>
+
+    <div id="divergencePanel" class="divergence-panel"><div class="loading" id="divLoading"></div></div>
+
+    <div id="summaryCards" class="summary-grid"><div class="summary-card"><div class="loading"></div></div></div>
+
+    <div class="chart-panel">
+        <div class="panel-header" id="outletHeader"></div>
+        <div class="panel-subtext" id="outletSub"></div>
+        <div id="outletChart"></div>
+    </div>
+
+    <div class="chart-panel">
+        <div class="panel-header" id="countryHeader"></div>
+        <div class="panel-subtext" id="countrySub"></div>
+        <div id="countryChart"></div>
+    </div>
+
+    <div class="chart-panel">
+        <div class="panel-header" id="heatmapHeader"></div>
+        <div class="panel-subtext" id="heatmapSub"></div>
+        <div id="trendHeatmap"></div>
+    </div>
+
+    <div class="panel">
+        <div class="flex-between">
+            <div class="panel-header" id="headlinesHeader"></div>
+            <div class="text-sm text-muted" id="headlineCount"></div>
+        </div>
+        <div class="panel-subtext" id="headlinesSub"></div>
+        <div id="headlinesList" class="data-table"><div class="loading"></div></div>
+    </div>
+
+    <details class="methodology-toggle">
+        <summary>{{ "Methodik" if lang == "de" else "Methodology" }}</summary>
+        <div class="methodology-content" id="methodText"></div>
+    </details>
+
+    <div class="actions-minimal">
+        <button class="btn-ghost" id="runBtn" onclick="runSentiment()"></button>
+    </div>
+</div>
+
+<script>
+let currentTopic = 'Israel';
+const C = { font: { family: 'Inter, sans-serif', size: 13, color: '#A0A6AF' }, paper_bgcolor: '#12151A', plot_bgcolor: '#12151A' };
+
+function pColor(p) { return p <= -0.1 ? '#E85D5D' : p >= 0.1 ? '#4CAF7D' : '#8B919A'; }
+function pClass(p) { return p <= -0.1 ? 'polarity-neg' : p >= 0.1 ? 'polarity-pos' : 'polarity-neutral'; }
+
+// Set all static text from translations
+(function initText() {
+    document.getElementById('readingGuide').innerHTML = t('readingGuideSentiment') +
+        `<div style="display: flex; gap: 24px; margin-top: 10px;">
+            <div class="guide-row"><span class="guide-dot" style="background: var(--risk-high)"></span> ${t('negativeTone')}</div>
+            <div class="guide-row"><span class="guide-dot" style="background: var(--text-secondary)"></span> ${t('neutralTone')}</div>
+            <div class="guide-row"><span class="guide-dot" style="background: var(--risk-low)"></span> ${t('positiveTone')}</div>
+        </div>`;
+    document.getElementById('divLoading').textContent = t('loading');
+    document.getElementById('outletHeader').textContent = t('toneByOutlet');
+    document.getElementById('outletSub').textContent = t('toneByOutletSub');
+    document.getElementById('countryHeader').textContent = t('toneByCountry');
+    document.getElementById('countrySub').textContent = t('toneByCountrySub');
+    document.getElementById('heatmapHeader').textContent = t('toneHeatmap');
+    document.getElementById('heatmapSub').innerHTML = t('toneHeatmapSub');
+    document.getElementById('headlinesHeader').textContent = t('strongestHeadlines');
+    document.getElementById('headlinesSub').textContent = t('strongestSub');
+    document.getElementById('methodText').textContent = t('methodologySentiment');
+    document.getElementById('runBtn').textContent = t('refreshData');
+})();
+
+function switchTopic(topic, btn) {
+    currentTopic = topic;
+    document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadAll();
+}
+
+async function loadAll() {
+    const e = encodeURIComponent(currentTopic);
+    const [outlets, countries, headlines, trend, div] = await Promise.all([
+        fetch(`/api/sentiment/outlets?topic=${e}`).then(r=>r.json()),
+        fetch(`/api/sentiment/countries?topic=${e}`).then(r=>r.json()),
+        fetch(`/api/sentiment/headlines?topic=${e}&limit=20`).then(r=>r.json()),
+        fetch(`/api/sentiment/trend?topic=${e}&group=country&days=28`).then(r=>r.json()),
+        fetch(`/api/sentiment/divergence?topic=${e}`).then(r=>r.json()),
+    ]);
+    renderDivergence(div);
+    renderSummary(outlets, countries);
+    renderBarChart('outletChart', outlets, 160);
+    renderBarChart('countryChart', countries, 120);
+    renderHeatmap(trend);
+    renderHeadlines(headlines);
+}
+
+function renderDivergence(d) {
+    const el = document.getElementById('divergencePanel');
+    if (!d.divergence) { el.innerHTML = `<div class="panel-header">${t('howMuchDisagree')}</div><div class="panel-subtext">${t('notEnoughData')}</div>`; return; }
+    const level = d.divergence > 0.3 ? t('largeDisagreement') : d.divergence > 0.15 ? t('moderateDisagreement') : t('generalConsensus');
+    const explain = d.divergence > 0.3 ? t('largeExplain') : d.divergence > 0.15 ? t('moderateExplain') : t('consensusExplain');
+    el.innerHTML = `
+        <div class="panel-header">${t('howMuchDisagree')}</div>
+        <div class="divergence-score">${level}</div>
+        <div class="divergence-detail">${explain}<br>${tf('basedOnOutlets', {n: d.outlet_count})}</div>
+        <div class="divergence-extremes" style="flex-wrap: wrap;">
+            <div><span class="label">${t('mostCriticalOutlet')}</span><div class="value polarity-neg">${d.most_negative.outlet}</div></div>
+            <div><span class="label">${t('leastCriticalOutlet')}</span><div class="value polarity-pos">${d.most_positive.outlet}</div></div>
+        </div>`;
+}
+
+function renderSummary(outlets, countries) {
+    if (!outlets.length) { document.getElementById('summaryCards').innerHTML = `<div class="summary-card"><div class="s-label">${t('noData')}</div></div>`; return; }
+    const total = outlets.reduce((s,o) => s + o.headline_count, 0);
+    const avg = outlets.reduce((s,o) => s + o.avg_polarity * o.headline_count, 0) / total;
+    document.getElementById('summaryCards').innerHTML = `
+        <div class="summary-card"><div class="s-label">${t('overallTone')}</div><div class="s-value ${pClass(avg)}">${toneWord(avg)}</div><div class="s-interpret">${tf('acrossHeadlines', {total, outlets: outlets.length})}</div></div>
+        <div class="summary-card"><div class="s-label">${t('headlinesAnalyzed')}</div><div class="s-value">${total}</div><div class="s-detail">${tf('outletsFromCountries', {outlets: outlets.length, countries: countries.length})}</div></div>
+        <div class="summary-card"><div class="s-label">${t('mostCriticalMedia')}</div><div class="s-value polarity-neg" style="font-size:1.1rem">${outlets[0].group_name}</div><div class="s-interpret">${tf('toneOf', {tone: toneWord(outlets[0].avg_polarity), n: outlets[0].headline_count})}</div></div>
+        <div class="summary-card"><div class="s-label">${t('leastCriticalMedia')}</div><div class="s-value polarity-pos" style="font-size:1.1rem">${outlets[outlets.length-1].group_name}</div><div class="s-interpret">${tf('toneOf', {tone: toneWord(outlets[outlets.length-1].avg_polarity), n: outlets[outlets.length-1].headline_count})}</div></div>`;
+}
+
+function renderBarChart(id, data, leftMargin) {
+    if (!data.length) { document.getElementById(id).innerHTML = `<div class="loading">${t('noData')}</div>`; return; }
+    data.sort((a,b) => a.avg_polarity - b.avg_polarity);
+    Plotly.newPlot(id, [{
+        y: data.map(d => d.group_name), x: data.map(d => d.avg_polarity),
+        type: 'bar', orientation: 'h',
+        marker: { color: data.map(d => pColor(d.avg_polarity)) },
+        hovertemplate: '%{y}: %{x:.3f}<extra></extra>',
+    }], {
+        ...C, margin: { l: leftMargin, r: 20, t: 5, b: 30 },
+        xaxis: { gridcolor: '#1A1D22', zeroline: true, zerolinecolor: '#333', zerolinewidth: 1 },
+        yaxis: { gridcolor: '#1A1D22' },
+        height: Math.max(250, data.length * 28),
+    }, { responsive: true, displayModeBar: false });
+}
+
+function renderHeatmap(data) {
+    const el = document.getElementById('trendHeatmap');
+    if (!data.length) { el.innerHTML = `<div class="loading">${t('noData')}</div>`; return; }
+    const byCountry = {}, allDates = new Set();
+    data.forEach(d => { if (!byCountry[d.group_name]) byCountry[d.group_name] = {}; byCountry[d.group_name][d.date] = d.avg_polarity; allDates.add(d.date); });
+    const dates = [...allDates].sort();
+    const countries = Object.keys(byCountry).sort((a, b) => {
+        const avgA = Object.values(byCountry[a]).reduce((s,v) => s+v, 0) / Object.values(byCountry[a]).length;
+        const avgB = Object.values(byCountry[b]).reduce((s,v) => s+v, 0) / Object.values(byCountry[b]).length;
+        return avgA - avgB;
+    });
+    const z = countries.map(c => dates.map(d => byCountry[c][d] || 0));
+    const mo = t('months');
+    const dateLabels = dates.map(d => { const p = d.split('-'); return parseInt(p[2]) + ' ' + mo[parseInt(p[1])]; });
+    Plotly.newPlot(el, [{
+        z, x: dateLabels, y: countries, type: 'heatmap',
+        colorscale: [[0,'#8B1A1A'],[0.25,'#E85D5D'],[0.42,'#D4A843'],[0.5,'#2A2D35'],[0.58,'#3A6B4A'],[0.75,'#4CAF7D'],[1,'#1B8A4E']],
+        zmin: -0.6, zmax: 0.6,
+        hovertemplate: '%{y}<br>%{x}<br>%{z:.3f}<extra></extra>',
+        colorbar: { title: { text: LANG === 'de' ? 'Ton' : 'Tone', font: { size: 12, color: '#A0A6AF' } }, tickfont: { size: 11, color: '#A0A6AF' }, len: 0.8 },
+    }], {
+        ...C, margin: { l: 120, r: 80, t: 10, b: 50 },
+        xaxis: { tickangle: -45, tickfont: { size: 12 }, dtick: 3 },
+        yaxis: { tickfont: { size: 13 } },
+        height: Math.max(350, countries.length * 28 + 100),
+    }, { responsive: true, displayModeBar: false });
+}
+
+function renderHeadlines(data) {
+    if (!data.length) { document.getElementById('headlinesList').innerHTML = `<div class="loading">${t('noData')}</div>`; return; }
+    data.sort((a,b) => Math.abs(b.polarity) - Math.abs(a.polarity));
+    document.getElementById('headlineCount').textContent = `${data.length} ${LANG === 'de' ? 'Schlagzeilen' : 'headlines'}`;
+    document.getElementById('headlinesList').innerHTML = data.map(h => `
+        <div class="data-row ${Math.abs(h.polarity) > 0.4 ? 'polarized' : ''}">
+            <div class="col-tone ${pClass(h.polarity)}">${toneWord(h.polarity)}</div>
+            <div class="col-source">${h.source}</div>
+            <div class="col-title">${h.link ? `<a href="${h.link}" target="_blank">${h.title}</a>` : h.title}</div>
+            <div class="col-meta">${h.country}</div>
+        </div>`).join('');
+}
+
+async function runSentiment() {
+    const btn = document.getElementById('runBtn');
+    btn.disabled = true; btn.textContent = t('updating');
+    try { await fetch('/run/sentiment', {method:'POST'}); await loadAll(); }
+    catch(e) { alert('Failed'); }
+    btn.disabled = false; btn.textContent = t('refreshData');
+}
+loadAll();
+</script>
+</body>
+</html>

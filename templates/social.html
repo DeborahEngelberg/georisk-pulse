@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoRisk Pulse — {{ "Öffentliche Meinung" if lang == "de" else "Public Opinion" }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script src="/static/translations.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="header-brand">GeoRisk Pulse</div>
+        <div class="header-right">
+            <div class="header-meta"><span class="live"></span>{{ "Öffentliche Meinung" if lang == "de" else "Public Opinion" }}</div>
+            <button class="lang-toggle" onclick="toggleLang()">{% if lang == 'de' %}EN{% else %}DE{% endif %}</button>
+        </div>
+    </div>
+
+    <nav class="tab-bar">
+        <a href="/?lang={{ lang }}" class="tab {% if active_tab == 'risk' %}tab-active{% endif %}">{{ "Risikoeinschätzung" if lang == "de" else "Risk Scores" }}</a>
+        <a href="/sentiment?lang={{ lang }}" class="tab {% if active_tab == 'sentiment' %}tab-active{% endif %}">{{ "Medienanalyse" if lang == "de" else "Media Analysis" }}</a>
+        <a href="/social?lang={{ lang }}" class="tab {% if active_tab == 'social' %}tab-active{% endif %}">{{ "Öffentliche Meinung" if lang == "de" else "Public Opinion" }}</a>
+    </nav>
+
+    <div class="topic-selector">
+        <button class="topic-btn active" onclick="switchTopic('Israel', this)">Israel</button>
+        <button class="topic-btn" onclick="switchTopic('US attack on Iran', this)">{{ "US–Iran-Konflikt" if lang == "de" else "US–Iran Conflict" }}</button>
+    </div>
+
+    <div class="reading-guide" id="readingGuide"></div>
+
+    <div id="summaryCards" class="summary-grid"><div class="summary-card"><div class="loading"></div></div></div>
+
+    <div class="chart-panel">
+        <div class="panel-header" id="countryHeader"></div>
+        <div class="panel-subtext" id="countrySub"></div>
+        <div id="countryChart"></div>
+    </div>
+
+    <div class="chart-panel">
+        <div class="panel-header" id="communityHeader"></div>
+        <div class="panel-subtext" id="communitySub"></div>
+        <div id="subredditChart"></div>
+    </div>
+
+    <div class="compare-grid">
+        <div class="chart-panel">
+            <div class="panel-header" id="mediaHeader"></div>
+            <div id="mediaCompare"></div>
+        </div>
+        <div class="chart-panel">
+            <div class="panel-header" id="socialHeader"></div>
+            <div id="socialCompare"></div>
+        </div>
+    </div>
+
+    <div class="panel panel-accent-gold">
+        <div class="panel-header" id="gapHeader"></div>
+        <div class="panel-subtext" id="gapSub"></div>
+        <div id="gapTable"><div class="loading"></div></div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header" id="postsHeader"></div>
+        <div class="panel-subtext" id="postsSub"></div>
+        <div id="postsList" class="data-table"><div class="loading"></div></div>
+    </div>
+
+    <details class="methodology-toggle">
+        <summary>{{ "Methodik & Einschränkungen" if lang == "de" else "Methodology & Caveats" }}</summary>
+        <div class="methodology-content" id="methodText"></div>
+    </details>
+
+    <div class="actions-minimal">
+        <button class="btn-ghost" id="runBtn" onclick="runSocial()"></button>
+    </div>
+</div>
+
+<script>
+let currentTopic = 'Israel';
+const C = { font: { family: 'Inter, sans-serif', size: 13, color: '#A0A6AF' }, paper_bgcolor: '#12151A', plot_bgcolor: '#12151A' };
+
+function pColor(p) { return p <= -0.1 ? '#E85D5D' : p >= 0.1 ? '#4CAF7D' : '#8B919A'; }
+function pClass(p) { return p <= -0.1 ? 'polarity-neg' : p >= 0.1 ? 'polarity-pos' : 'polarity-neutral'; }
+
+(function initText() {
+    document.getElementById('readingGuide').innerHTML = t('readingGuideSocial') +
+        `<div style="margin-top: 8px;">${t('readingGuideSocial2')}</div>`;
+    document.getElementById('gapHeader').textContent = t('perceptionGap');
+    document.getElementById('gapSub').textContent = t('perceptionGapSub');
+    document.getElementById('mediaHeader').textContent = t('mediaFraming');
+    document.getElementById('socialHeader').textContent = t('publicSentiment');
+    document.getElementById('countryHeader').textContent = t('publicByCountry');
+    document.getElementById('countrySub').textContent = t('publicByCountrySub');
+    document.getElementById('communityHeader').textContent = t('byCommunity');
+    document.getElementById('communitySub').textContent = t('byCommunitySub');
+    document.getElementById('postsHeader').textContent = t('samplePosts');
+    document.getElementById('postsSub').textContent = t('samplePostsSub');
+    document.getElementById('methodText').textContent = t('methodologySocial');
+    document.getElementById('runBtn').textContent = t('fetchReddit');
+})();
+
+function switchTopic(topic, btn) {
+    currentTopic = topic;
+    document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadAll();
+}
+
+async function loadAll() {
+    const e = encodeURIComponent(currentTopic);
+    const [countries, subreddits, posts, mediaCountries, gapData] = await Promise.all([
+        fetch(`/api/social/countries?topic=${e}`).then(r=>r.json()),
+        fetch(`/api/social/subreddits?topic=${e}`).then(r=>r.json()),
+        fetch(`/api/social/posts?topic=${e}&limit=25`).then(r=>r.json()),
+        fetch(`/api/sentiment/countries?topic=${e}`).then(r=>r.json()),
+        fetch(`/api/social/media_gap?topic=${e}`).then(r=>r.json()),
+    ]);
+    renderSummary(countries, posts);
+    renderGapTable(gapData);
+    renderCompare('mediaCompare', mediaCountries);
+    renderCompare('socialCompare', countries);
+    renderBarChart('countryChart', countries, 140);
+    renderBarChart('subredditChart', subreddits, 170, 'r/');
+    renderPosts(posts);
+}
+
+function renderSummary(countries, posts) {
+    if (!countries.length) {
+        document.getElementById('summaryCards').innerHTML = `<div class="summary-card"><div class="s-label">${t('noData')}</div><div class="s-detail">${t('fetchReddit')}</div></div>`;
+        return;
+    }
+    const total = countries.reduce((s,c) => s + c.post_count, 0);
+    const avg = countries.reduce((s,c) => s + c.avg_polarity * c.post_count, 0) / total;
+    const neg = countries[0], pos = countries[countries.length - 1];
+    document.getElementById('summaryCards').innerHTML = `
+        <div class="summary-card"><div class="s-label">${t('overallPublicMood')}</div><div class="s-value ${pClass(avg)}">${toneWord(avg)}</div><div class="s-interpret">${tf('acrossPosts', {n: total})}</div></div>
+        <div class="summary-card"><div class="s-label">${t('mostCriticalCountry')}</div><div class="s-value polarity-neg" style="font-size:1.1rem">${neg.group_name}</div><div class="s-interpret">${toneWord(neg.avg_polarity)} · ${neg.post_count} ${LANG==='de'?'Beiträge':'posts'}</div></div>
+        <div class="summary-card"><div class="s-label">${t('leastCriticalCountry')}</div><div class="s-value polarity-pos" style="font-size:1.1rem">${pos.group_name}</div><div class="s-interpret">${toneWord(pos.avg_polarity)} · ${pos.post_count} ${LANG==='de'?'Beiträge':'posts'}</div></div>
+        <div class="summary-card"><div class="s-label">${t('postsAnalyzed')}</div><div class="s-value">${total}</div><div class="s-detail">${tf('nCountries', {n: countries.length})}</div></div>`;
+}
+
+function renderGapTable(data) {
+    if (!data.length) { document.getElementById('gapTable').innerHTML = `<div class="text-sm text-muted">${t('insufficientGap')}</div>`; return; }
+    let html = `<table class="gap-table"><tr><th>${t('gapCountry')}</th><th>${t('gapMedia')}</th><th>${t('gapPublic')}</th><th>${t('gapGap')}</th><th>${t('gapDirection')}</th></tr>`;
+    data.forEach(d => {
+        const dir = d.public_polarity < d.media_polarity ? t('publicMoreCritical') : t('publicMoreFavorable');
+        html += `<tr>
+            <td>${d.country}</td>
+            <td class="mono ${pClass(d.media_polarity)}">${d.media_polarity >= 0?'+':''}${d.media_polarity.toFixed(3)}</td>
+            <td class="mono ${pClass(d.public_polarity)}">${d.public_polarity >= 0?'+':''}${d.public_polarity.toFixed(3)}</td>
+            <td class="mono ${d.gap > 0.15 ? 'gap-high' : ''}">${d.gap.toFixed(3)}</td>
+            <td class="text-sm">${dir}</td>
+        </tr>`;
+    });
+    document.getElementById('gapTable').innerHTML = html + '</table>';
+}
+
+function renderCompare(id, data) {
+    if (!data.length) { document.getElementById(id).innerHTML = `<div class="loading">${t('noData')}</div>`; return; }
+    data.sort((a,b) => a.avg_polarity - b.avg_polarity);
+    Plotly.newPlot(id, [{
+        y: data.map(d => d.group_name), x: data.map(d => d.avg_polarity),
+        type: 'bar', orientation: 'h',
+        marker: { color: data.map(d => pColor(d.avg_polarity)) },
+        hovertemplate: '%{y}: %{x:.3f}<extra></extra>',
+    }], {
+        ...C, margin: { l: 100, r: 10, t: 5, b: 25 },
+        xaxis: { gridcolor: '#1A1D22', zeroline: true, zerolinecolor: '#333', range: [-0.6, 0.2] },
+        yaxis: { gridcolor: '#1A1D22' },
+        height: Math.max(200, data.length * 25 + 30),
+    }, { responsive: true, displayModeBar: false });
+}
+
+function renderBarChart(id, data, leftMargin, prefix) {
+    if (!data.length) { document.getElementById(id).innerHTML = `<div class="loading">${t('noData')}</div>`; return; }
+    data.sort((a,b) => a.avg_polarity - b.avg_polarity);
+    Plotly.newPlot(id, [{
+        y: data.map(d => (prefix||'') + d.group_name), x: data.map(d => d.avg_polarity),
+        type: 'bar', orientation: 'h',
+        marker: { color: data.map(d => pColor(d.avg_polarity)) },
+        hovertemplate: '%{y}: %{x:.3f}<extra></extra>',
+    }], {
+        ...C, margin: { l: leftMargin, r: 20, t: 5, b: 30 },
+        xaxis: { gridcolor: '#1A1D22', zeroline: true, zerolinecolor: '#333' },
+        yaxis: { gridcolor: '#1A1D22' },
+        height: Math.max(250, data.length * 28),
+    }, { responsive: true, displayModeBar: false });
+}
+
+function renderPosts(data) {
+    if (!data.length) { document.getElementById('postsList').innerHTML = `<div class="loading">${t('noData')}</div>`; return; }
+    document.getElementById('postsList').innerHTML = data.map(p => `
+        <div class="data-row">
+            <div class="col-tone ${pClass(p.polarity)}">${toneWord(p.polarity||0)}</div>
+            <div class="col-source">r/${p.subreddit}</div>
+            <div class="col-title">${p.url ? `<a href="${p.url}" target="_blank">${p.title}</a>` : p.title}</div>
+            <div class="col-meta">${p.country}</div>
+        </div>`).join('');
+}
+
+async function runSocial() {
+    const btn = document.getElementById('runBtn');
+    btn.disabled = true; btn.textContent = t('fetching');
+    try { await fetch('/run/social', {method:'POST'}); await loadAll(); }
+    catch(e) { alert('Failed'); }
+    btn.disabled = false; btn.textContent = t('fetchReddit');
+}
+loadAll();
+</script>
+</body>
+</html>

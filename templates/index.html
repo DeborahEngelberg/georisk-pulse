@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoRisk Pulse</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script src="/static/translations.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="header-brand">GeoRisk Pulse</div>
+        <div class="header-right">
+            <div class="header-meta"><span class="live"></span>{{ latest[0].date if latest else '' }}</div>
+            <button class="lang-toggle" onclick="toggleLang()">{% if lang == 'de' %}EN{% else %}DE{% endif %}</button>
+        </div>
+    </div>
+
+    <nav class="tab-bar">
+        <a href="/?lang={{ lang }}" class="tab {% if active_tab == 'risk' %}tab-active{% endif %}">{{ "Risikoeinschätzung" if lang == "de" else "Risk Scores" }}</a>
+        <a href="/sentiment?lang={{ lang }}" class="tab {% if active_tab == 'sentiment' %}tab-active{% endif %}">{{ "Medienanalyse" if lang == "de" else "Media Analysis" }}</a>
+        <a href="/social?lang={{ lang }}" class="tab {% if active_tab == 'social' %}tab-active{% endif %}">{{ "Öffentliche Meinung" if lang == "de" else "Public Opinion" }}</a>
+    </nav>
+
+    {% if brief_lines %}
+    <div class="brief">
+        <div class="brief-label">{{ "Lageeinschätzung" if lang == "de" else "Situation Assessment" }}</div>
+        {% for line in brief_lines %}
+        <div class="brief-line">{{ line }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="score-grid">
+        {% set colors = {'Iran': '#a78bfa', 'Russia': '#38bdf8', 'Israel': '#fb923c', 'Taiwan': '#34d399'} %}
+        {% for s in latest %}
+        <div class="score-card" style="border-top-color: {{ colors.get(s.region, '#555') }}">
+            <div class="region-label">
+                <span class="region-dot" style="background: {{ colors.get(s.region, '#555') }}"></span>
+                {{ s.display_name }}
+            </div>
+            <div class="score-row">
+                <span class="score-value">{{ "%.0f"|format(s.score) }}</span>
+                {% if s.change and s.change != 0 %}
+                <span class="score-delta {% if s.change > 0 %}delta-up{% elif s.change < 0 %}delta-down{% else %}delta-flat{% endif %}">
+                    {{ "%+.0f"|format(s.change) }}
+                </span>
+                {% endif %}
+            </div>
+            <div class="risk-level {% if s.score >= 60 %}risk-high-label{% elif s.score >= 30 %}risk-elevated-label{% else %}risk-low-label{% endif %}">
+                {% if lang == "de" %}
+                    {% if s.score >= 60 %}HOCH{% elif s.score >= 30 %}ERHÖHT{% else %}NIEDRIG{% endif %}
+                {% else %}
+                    {% if s.score >= 60 %}HIGH{% elif s.score >= 30 %}ELEVATED{% else %}LOW{% endif %}
+                {% endif %}
+            </div>
+            <div class="sparkline-container" id="spark-{{ s.region|lower|replace(' ', '') }}"></div>
+            <div class="score-meta">
+                {{ "Ø 30 T." if lang == "de" else "30d avg" }} {{ "%.0f"|format(s.avg_30d) }} · {{ "Ø 90 T." if lang == "de" else "90d avg" }} {{ "%.0f"|format(s.avg_90d) }}<br>
+                {{ "Höchstwert" if lang == "de" else "Peak" }} {{ "%.0f"|format(s.peak_score) }} ({{ s.peak_date }})
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="reading-guide">
+        {% if lang == "de" %}
+        <strong>So lesen Sie die Risikowerte:</strong> Jede Region wird auf einer Skala von 0 bis 100 bewertet, basierend auf der Schwere der aktuellen Nachrichtenlage. Die Zahl neben dem Wert (z.B. +14) zeigt die Veränderung seit gestern. Die kleine Linie zeigt den Trend der letzten Woche.
+        <div style="display: flex; gap: 24px; margin-top: 10px;">
+            <div class="guide-row"><span class="guide-dot" style="background: var(--risk-low)"></span> 0–29 = Niedriges Risiko</div>
+            <div class="guide-row"><span class="guide-dot" style="background: var(--risk-elevated)"></span> 30–59 = Erhöht</div>
+            <div class="guide-row"><span class="guide-dot" style="background: var(--risk-high)"></span> 60–100 = Hohes Risiko, aktiver Konflikt</div>
+        </div>
+        {% else %}
+        <strong>How to read the scores:</strong> Each region is scored 0 to 100 based on the severity of today's news headlines. The number next to the score (e.g. +14) shows the change since yesterday. The small line shows the trend over the past week.
+        <div style="display: flex; gap: 24px; margin-top: 10px;">
+            <div class="guide-row"><span class="guide-dot" style="background: var(--risk-low)"></span> 0–29 = Low risk</div>
+            <div class="guide-row"><span class="guide-dot" style="background: var(--risk-elevated)"></span> 30–59 = Elevated</div>
+            <div class="guide-row"><span class="guide-dot" style="background: var(--risk-high)"></span> 60–100 = High risk, active conflict</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="chart-panel">
+        <div class="panel-header">{{ "Risikotrend der letzten 30 Tage" if lang == "de" else "Risk Trend Over the Past 30 Days" }}</div>
+        <div class="panel-subtext">{{ "Jede Linie zeigt eine Region. Höher = gefährlicher. Die farbigen Bereiche zeigen die Risikozonen." if lang == "de" else "Each line shows one region. Higher = more dangerous. The shaded bands show the risk zones." }}</div>
+        <div id="chart"></div>
+    </div>
+
+    <div class="panel panel-accent-gold">
+        <div class="panel-header">{{ "Wirtschaftliche Verflechtung" if lang == "de" else "Economic Exposure" }}</div>
+        <div class="econ-grid">
+            {% for region, data in economic.items() %}
+            <div>
+                <table class="econ-table">
+                    <tr><th colspan="2">{{ region }}</th></tr>
+                    {% for key, val in data.items() %}
+                    <tr><td>{{ key }}</td><td>{{ val }}</td></tr>
+                    {% endfor %}
+                </table>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="panel" style="border-top: 3px solid #E85D5D;">
+        <div class="panel-header">{{ "EU- & Österreich-Risikoanalyse" if lang == "de" else "EU & Austria Exposure Assessment" }}</div>
+        <div class="econ-grid">
+            {% for region, data in eu_austria.items() %}
+            <div>
+                <table class="econ-table">
+                    <tr><th colspan="2">{{ region }}</th></tr>
+                    {% for key, val in data.items() %}
+                    <tr><td>{{ key }}</td><td>{{ val }}</td></tr>
+                    {% endfor %}
+                </table>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">{{ "Historische Vergleichswerte" if lang == "de" else "Historical Benchmarks" }}</div>
+        <div class="econ-grid">
+            {% for region, events in benchmarks.items() %}
+            <div>
+                <div style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">{{ region }}</div>
+                {% for e in events %}
+                <div class="benchmark-row">
+                    <span class="benchmark-event">{{ e.event }}</span>
+                    <span><span class="benchmark-score">{{ e.score }}</span> <span class="benchmark-date">{{ e.date }}</span></span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <details class="methodology-toggle">
+        <summary>{{ "Methodik" if lang == "de" else "Methodology" }}</summary>
+        <div class="methodology-content">
+            {% if lang == "de" %}
+            Die Risikowerte basieren auf einer schlüsselwortgewichteten NLP-Analyse von Schlagzeilen bei Reuters, AP und Al Jazeera. Schwerwiegende Meldungen werden stärker gewichtet; bei aktiven Konflikten wird eine Mindestbewertung beibehalten. Das Nachrichtenvolumen fließt mit bis zu 15 Punkten in die Tagesbewertung ein. Aktualisierung täglich um 06:00 UTC.
+            {% else %}
+            Scores derived from keyword-weighted NLP analysis of Reuters, AP, and Al Jazeera headlines. Top-heavy aggregation prioritizes high-severity signals; severity floors prevent dilution during active conflict. Updated daily at 06:00 UTC.
+            {% endif %}
+        </div>
+    </details>
+
+    <div class="actions-minimal">
+        <button class="btn-ghost" id="runBtn" onclick="runPipeline()">{{ "Daten aktualisieren" if lang == "de" else "Refresh Data" }}</button>
+    </div>
+</div>
+
+<script>
+const REGION_COLORS = { 'Iran': '#a78bfa', 'Russia': '#38bdf8', 'Israel': '#fb923c', 'Taiwan': '#34d399' };
+const CHART_DEFAULTS = {
+    font: { family: 'Inter, sans-serif', size: 13, color: '#A0A6AF' },
+    paper_bgcolor: '#12151A', plot_bgcolor: '#12151A',
+    margin: { t: 10, r: 40, b: 50, l: 50 },
+    hovermode: 'x unified',
+};
+
+const sparklines = {{ sparklines_json | safe }};
+Object.entries(sparklines).forEach(([region, data]) => {
+    const el = document.getElementById('spark-' + region.toLowerCase().replace(/\s/g, ''));
+    if (!el || !data.length) return;
+    const color = REGION_COLORS[region] || '#555';
+    const min = Math.min(...data), max = Math.max(...data);
+    const range = max - min || 1;
+    const w = el.offsetWidth || 150, h = 28;
+    const points = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h}`).join(' ');
+    el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+});
+
+const scores = {{ scores_json | safe }};
+(function() {
+    const byRegion = {};
+    scores.forEach(d => {
+        if (!byRegion[d.region]) byRegion[d.region] = { x: [], y: [] };
+        byRegion[d.region].x.push(d.date);
+        byRegion[d.region].y.push(d.score);
+    });
+    const traces = Object.entries(byRegion).map(([region, v]) => ({
+        x: v.x, y: v.y, name: region, type: 'scatter', mode: 'lines',
+        line: { color: REGION_COLORS[region] || '#555', width: 1.5 },
+    }));
+    Plotly.newPlot('chart', traces, {
+        ...CHART_DEFAULTS,
+        xaxis: { gridcolor: '#1A1D22', gridwidth: 0.5 },
+        yaxis: { gridcolor: '#1A1D22', gridwidth: 0.5, range: [0, 100] },
+        legend: { orientation: 'h', y: 1.08, x: 0, font: { size: 13 } },
+        height: 380,
+        shapes: [
+            { type: 'rect', x0: 0, x1: 1, xref: 'paper', y0: 60, y1: 100, fillcolor: '#E85D5D', opacity: 0.03, line: { width: 0 } },
+            { type: 'rect', x0: 0, x1: 1, xref: 'paper', y0: 30, y1: 60, fillcolor: '#D4A843', opacity: 0.03, line: { width: 0 } },
+            { type: 'rect', x0: 0, x1: 1, xref: 'paper', y0: 0, y1: 30, fillcolor: '#4CAF7D', opacity: 0.03, line: { width: 0 } },
+        ],
+    }, { responsive: true, displayModeBar: false });
+})();
+
+async function runPipeline() {
+    const btn = document.getElementById('runBtn');
+    btn.disabled = true; btn.textContent = t('updating');
+    try { await fetch('/run', { method: 'POST' }); location.reload(); }
+    catch(e) { btn.disabled = false; btn.textContent = t('refreshData'); }
+}
+</script>
+</body>
+</html>
