@@ -180,18 +180,29 @@ def fetch_sentiment_feeds():
     """Fetch all international RSS feeds. Returns list of entries with source/country/region."""
     all_entries = []
     for source, info in SENTIMENT_FEEDS.items():
-        feed = feedparser.parse(info["url"])
-        entries = list(feed.entries)
+        try:
+            feed = feedparser.parse(info["url"])
+            entries = list(feed.entries)
+        except Exception as e:
+            print(f"    {source}: primary feed error: {e}")
+            entries = []
+
         fallback = FALLBACK_FEEDS.get(source)
 
         # If primary returned nothing, use fallback exclusively
         if not entries and fallback:
-            feed = feedparser.parse(fallback)
-            entries = list(feed.entries)
+            try:
+                feed = feedparser.parse(fallback)
+                entries = list(feed.entries)
+            except Exception:
+                pass
         # If primary is mostly local, ALSO fetch fallback to supplement
         elif source in ALWAYS_SUPPLEMENT and fallback:
-            fb_feed = feedparser.parse(fallback)
-            entries.extend(fb_feed.entries)
+            try:
+                fb_feed = feedparser.parse(fallback)
+                entries.extend(fb_feed.entries)
+            except Exception:
+                pass
 
         country = info["country"]
         region = COUNTRY_TO_REGION.get(country, "Other")

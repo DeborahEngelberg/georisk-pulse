@@ -58,7 +58,7 @@ def run_sentiment_pipeline():
         if not relevant:
             continue
 
-        scored = analyze_batch(relevant)
+        scored = analyze_batch(relevant, topic=topic_name)
         store_sentiment_headlines([{**h, "topic": topic_name} for h in scored])
 
         outlet_agg = aggregate_by_outlet(scored)

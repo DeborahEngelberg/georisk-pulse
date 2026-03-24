@@ -41,7 +41,7 @@ def backfill_sentiment():
             print(f"  {topic_name}: no matching headlines, skipping")
             continue
 
-        scored = analyze_batch(relevant)
+        scored = analyze_batch(relevant, topic=topic_name)
         print(f"\n=== {topic_name}: {len(scored)} headlines ===")
 
         # Countries with known geopolitical stances but sparse English-language feeds.
