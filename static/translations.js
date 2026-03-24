@@ -158,3 +158,29 @@ function toggleLang() {
     url.searchParams.set('lang', LANG === 'en' ? 'de' : 'en');
     window.location = url;
 }
+
+// Theme: light/dark mode
+const THEME = localStorage.getItem('georisk-theme') || 'dark';
+if (THEME === 'light') document.body.classList.add('light');
+
+function toggleTheme() {
+    const isLight = document.body.classList.toggle('light');
+    localStorage.setItem('georisk-theme', isLight ? 'light' : 'dark');
+    // Update Plotly charts if they exist
+    const newBg = isLight ? '#FFFFFF' : '#12151A';
+    const newGrid = isLight ? '#E8E8EC' : '#1A1D22';
+    const newFont = isLight ? '#555555' : '#A0A6AF';
+    const newZero = isLight ? '#CCCCCC' : '#333333';
+    document.querySelectorAll('.js-plotly-plot').forEach(el => {
+        Plotly.relayout(el, {
+            'paper_bgcolor': newBg, 'plot_bgcolor': newBg,
+            'font.color': newFont,
+            'xaxis.gridcolor': newGrid, 'yaxis.gridcolor': newGrid,
+            'xaxis.zerolinecolor': newZero, 'yaxis.zerolinecolor': newZero,
+        });
+    });
+    // Update theme button text
+    document.querySelectorAll('.theme-toggle').forEach(btn => {
+        btn.textContent = isLight ? '☾' : '☀';
+    });
+}

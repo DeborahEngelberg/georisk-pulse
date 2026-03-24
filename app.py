@@ -23,14 +23,15 @@ init_db()
 def _bootstrap():
     """Run backfills if DB is empty — called once at startup."""
     if not get_scores_last_n_days(1):
-        print("No risk data — running initial pipeline...")
-        run_daily_pipeline()
+        print("No risk data — running risk backfill (7 days + today)...")
+        from backfill import backfill
+        backfill()
     if not get_sentiment_by_group("Israel", "outlet"):
-        print("No sentiment data — running sentiment backfill...")
+        print("No sentiment data — running sentiment backfill (28 days)...")
         from backfill_sentiment import backfill_sentiment
         backfill_sentiment()
     if not get_social_by_group("Israel", "country"):
-        print("No social data — running social backfill...")
+        print("No social data — running social backfill (28 days)...")
         from backfill_social import backfill_social
         backfill_social()
 

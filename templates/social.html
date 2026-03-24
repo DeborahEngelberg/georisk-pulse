@@ -14,7 +14,8 @@
         <div class="header-brand">GeoRisk Pulse</div>
         <div class="header-right">
             <div class="header-meta"><span class="live"></span>{{ "Öffentliche Meinung" if lang == "de" else "Public Opinion" }}</div>
-            <button class="lang-toggle" onclick="toggleLang()">{% if lang == 'de' %}EN{% else %}DE{% endif %}</button>
+            <button class="header-toggle theme-toggle" onclick="toggleTheme()">☀</button>
+            <button class="header-toggle" onclick="toggleLang()">{% if lang == 'de' %}EN{% else %}DE{% endif %}</button>
         </div>
     </div>
 
@@ -80,7 +81,15 @@
 
 <script>
 let currentTopic = 'Israel';
-const C = { font: { family: 'Inter, sans-serif', size: 13, color: '#A0A6AF' }, paper_bgcolor: '#12151A', plot_bgcolor: '#12151A' };
+function getChartColors() {
+    const s = getComputedStyle(document.body);
+    return {
+        font: { family: 'Inter, sans-serif', size: 13, color: s.getPropertyValue('--text-secondary').trim() },
+        paper_bgcolor: s.getPropertyValue('--bg-panel').trim(),
+        plot_bgcolor: s.getPropertyValue('--bg-panel').trim(),
+    };
+}
+let C = getChartColors();
 
 function pColor(p) { return p <= -0.1 ? '#E85D5D' : p >= 0.1 ? '#4CAF7D' : '#8B919A'; }
 function pClass(p) { return p <= -0.1 ? 'polarity-neg' : p >= 0.1 ? 'polarity-pos' : 'polarity-neutral'; }

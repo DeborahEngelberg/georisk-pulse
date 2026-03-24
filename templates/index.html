@@ -14,7 +14,8 @@
         <div class="header-brand">GeoRisk Pulse</div>
         <div class="header-right">
             <div class="header-meta"><span class="live"></span>{{ latest[0].date if latest else '' }}</div>
-            <button class="lang-toggle" onclick="toggleLang()">{% if lang == 'de' %}EN{% else %}DE{% endif %}</button>
+            <button class="header-toggle theme-toggle" onclick="toggleTheme()">☀</button>
+            <button class="header-toggle" onclick="toggleLang()">{% if lang == 'de' %}EN{% else %}DE{% endif %}</button>
         </div>
     </div>
 
