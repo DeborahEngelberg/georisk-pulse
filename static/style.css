@@ -2,20 +2,21 @@
 /* Optimized for readability: 50+ audience, politicians, decision-makers */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
+/* Light mode is the default */
 :root {
-    --bg-primary: #0B0E11;
-    --bg-panel: #12151A;
-    --bg-inset: #0E1116;
-    --border: #1E2229;
-    --border-subtle: #171B21;
-    --accent-gold: #D4A843;
-    --accent-blue: #4A90D9;
-    --text-primary: #ECECEC;
-    --text-secondary: #A0A6AF;
-    --text-tertiary: #5E646E;
-    --risk-high: #E85D5D;
-    --risk-elevated: #D4A843;
-    --risk-low: #4CAF7D;
+    --bg-primary: #F5F5F7;
+    --bg-panel: #FFFFFF;
+    --bg-inset: #F0F0F2;
+    --border: #E0E0E4;
+    --border-subtle: #EAEAEE;
+    --accent-gold: #8B6914;
+    --accent-blue: #2563EB;
+    --text-primary: #1A1A1A;
+    --text-secondary: #555555;
+    --text-tertiary: #999999;
+    --risk-high: #D93025;
+    --risk-elevated: #B8860B;
+    --risk-low: #1B8A4E;
     --font-sans: 'Inter', -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
 }
@@ -103,7 +104,7 @@ body {
 .score-card .region-dot { width: 10px; height: 10px; border-radius: 50%; }
 .score-card .score-row { display: flex; align-items: baseline; gap: 12px; margin: 10px 0 6px; }
 .score-card .score-value {
-    font-family: var(--font-mono); font-size: 2.6rem; font-weight: 700; color: #fff;
+    font-family: var(--font-mono); font-size: 2.6rem; font-weight: 700; color: var(--text-primary);
 }
 .score-card .score-delta { font-family: var(--font-mono); font-size: 16px; font-weight: 600; }
 .delta-up { color: var(--risk-high); }
@@ -182,7 +183,7 @@ body {
     font-size: 12px; font-weight: 600; letter-spacing: 0.5px;
     text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px;
 }
-.summary-card .s-value { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 700; color: #fff; }
+.summary-card .s-value { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
 .summary-card .s-detail { font-size: 13px; color: var(--text-tertiary); margin-top: 4px; }
 .summary-card .s-interpret { font-size: 14px; color: var(--text-secondary); margin-top: 6px; font-style: italic; }
 .polarity-pos { color: var(--risk-low); }
@@ -290,34 +291,22 @@ body {
 .header-toggle:hover { border-color: var(--accent-gold); background: rgba(212,168,67,0.1); }
 .header-right { display: flex; align-items: center; gap: 10px; }
 
-/* --- Light Mode --- */
-body.light {
-    --bg-primary: #F5F5F7;
-    --bg-panel: #FFFFFF;
-    --bg-inset: #F0F0F2;
-    --border: #E0E0E4;
-    --border-subtle: #EAEAEE;
-    --text-primary: #1A1A1A;
-    --text-secondary: #555555;
-    --text-tertiary: #999999;
-    --risk-high: #D93025;
-    --risk-elevated: #B8860B;
-    --risk-low: #1B8A4E;
-    --accent-gold: #8B6914;
+/* --- Dark Mode --- */
+body.dark {
+    --bg-primary: #0B0E11;
+    --bg-panel: #12151A;
+    --bg-inset: #0E1116;
+    --border: #1E2229;
+    --border-subtle: #171B21;
+    --accent-gold: #D4A843;
+    --accent-blue: #4A90D9;
+    --text-primary: #ECECEC;
+    --text-secondary: #A0A6AF;
+    --text-tertiary: #5E646E;
+    --risk-high: #E85D5D;
+    --risk-elevated: #D4A843;
+    --risk-low: #4CAF7D;
 }
-body.light .header-brand { color: #1A1A1A; }
-body.light .header-toggle { color: #555; border-color: #ccc; }
-body.light .header-toggle:hover { background: rgba(0,0,0,0.05); border-color: #999; }
-body.light .tab { color: #999; }
-body.light .tab:hover { color: #555; }
-body.light .tab-active { color: var(--accent-gold); border-bottom-color: var(--accent-gold); }
-body.light .topic-btn { color: #777; border-color: #ddd; background: #fff; }
-body.light .topic-btn:hover { color: #333; border-color: #bbb; }
-body.light .topic-btn.active { background: var(--accent-gold); color: #fff; border-color: var(--accent-gold); }
-body.light .score-card .score-value { color: #1A1A1A; }
-body.light .summary-card .s-value { color: #1A1A1A; }
-body.light .reading-guide { background: #EEEEF2; border-color: #ddd; }
-body.light .brief { background: #FFFFF0; border-left-color: var(--accent-gold); }
-body.light .polarity-neg { color: #D93025; }
-body.light .polarity-pos { color: #1B8A4E; }
-body.light .data-row.polarized { background: rgba(217, 48, 37, 0.04); }
+body.dark .score-card .score-value { color: #fff; }
+body.dark .summary-card .s-value { color: #fff; }
+body.dark .topic-btn.active { color: #000; }

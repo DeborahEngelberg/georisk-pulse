@@ -157,12 +157,17 @@
 
 <script>
 const REGION_COLORS = { 'Iran': '#a78bfa', 'Russia': '#38bdf8', 'Israel': '#fb923c', 'Taiwan': '#34d399' };
-const CHART_DEFAULTS = {
-    font: { family: 'Inter, sans-serif', size: 13, color: '#A0A6AF' },
-    paper_bgcolor: '#12151A', plot_bgcolor: '#12151A',
-    margin: { t: 10, r: 40, b: 50, l: 50 },
-    hovermode: 'x unified',
-};
+function getChartDefaults() {
+    const s = getComputedStyle(document.body);
+    return {
+        font: { family: 'Inter, sans-serif', size: 13, color: s.getPropertyValue('--text-secondary').trim() },
+        paper_bgcolor: s.getPropertyValue('--bg-panel').trim(),
+        plot_bgcolor: s.getPropertyValue('--bg-panel').trim(),
+        margin: { t: 10, r: 40, b: 50, l: 50 },
+        hovermode: 'x unified',
+    };
+}
+const CHART_DEFAULTS = getChartDefaults();
 
 const sparklines = {{ sparklines_json | safe }};
 Object.entries(sparklines).forEach(([region, data]) => {
@@ -190,8 +195,8 @@ const scores = {{ scores_json | safe }};
     }));
     Plotly.newPlot('chart', traces, {
         ...CHART_DEFAULTS,
-        xaxis: { gridcolor: '#1A1D22', gridwidth: 0.5 },
-        yaxis: { gridcolor: '#1A1D22', gridwidth: 0.5, range: [0, 100] },
+        xaxis: { gridcolor: document.body.classList.contains('dark') ? '#1A1D22' : '#E8E8EC', gridwidth: 0.5 },
+        yaxis: { gridcolor: document.body.classList.contains('dark') ? '#1A1D22' : '#E8E8EC', gridwidth: 0.5, range: [0, 100] },
         legend: { orientation: 'h', y: 1.08, x: 0, font: { size: 13 } },
         height: 380,
         shapes: [

@@ -76,11 +76,14 @@
 <script>
 let currentTopic = 'Israel';
 function getChartColors() {
+    const isDark = document.body.classList.contains('dark');
     const s = getComputedStyle(document.body);
     return {
         font: { family: 'Inter, sans-serif', size: 13, color: s.getPropertyValue('--text-secondary').trim() },
         paper_bgcolor: s.getPropertyValue('--bg-panel').trim(),
         plot_bgcolor: s.getPropertyValue('--bg-panel').trim(),
+        _grid: isDark ? '#1A1D22' : '#E8E8EC',
+        _zero: isDark ? '#333333' : '#CCCCCC',
     };
 }
 let C = getChartColors();
@@ -117,6 +120,7 @@ function switchTopic(topic, btn) {
 }
 
 async function loadAll() {
+    C = getChartColors(); // refresh for current theme
     const e = encodeURIComponent(currentTopic);
     const [outlets, countries, headlines, trend, div] = await Promise.all([
         fetch(`/api/sentiment/outlets?topic=${e}`).then(r=>r.json()),
@@ -169,8 +173,8 @@ function renderBarChart(id, data, leftMargin) {
         hovertemplate: '%{y}: %{x:.3f}<extra></extra>',
     }], {
         ...C, margin: { l: leftMargin, r: 20, t: 5, b: 30 },
-        xaxis: { gridcolor: '#1A1D22', zeroline: true, zerolinecolor: '#333', zerolinewidth: 1 },
-        yaxis: { gridcolor: '#1A1D22' },
+        xaxis: { gridcolor: C._grid, zeroline: true, zerolinecolor: C._zero, zerolinewidth: 1 },
+        yaxis: { gridcolor: C._grid },
         height: Math.max(250, data.length * 28),
     }, { responsive: true, displayModeBar: false });
 }

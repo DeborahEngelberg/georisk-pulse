@@ -82,11 +82,14 @@
 <script>
 let currentTopic = 'Israel';
 function getChartColors() {
+    const isDark = document.body.classList.contains('dark');
     const s = getComputedStyle(document.body);
     return {
         font: { family: 'Inter, sans-serif', size: 13, color: s.getPropertyValue('--text-secondary').trim() },
         paper_bgcolor: s.getPropertyValue('--bg-panel').trim(),
         plot_bgcolor: s.getPropertyValue('--bg-panel').trim(),
+        _grid: isDark ? '#1A1D22' : '#E8E8EC',
+        _zero: isDark ? '#333333' : '#CCCCCC',
     };
 }
 let C = getChartColors();
@@ -119,6 +122,7 @@ function switchTopic(topic, btn) {
 }
 
 async function loadAll() {
+    C = getChartColors();
     const e = encodeURIComponent(currentTopic);
     const [countries, subreddits, posts, mediaCountries, gapData] = await Promise.all([
         fetch(`/api/social/countries?topic=${e}`).then(r=>r.json()),
@@ -177,8 +181,8 @@ function renderCompare(id, data) {
         hovertemplate: '%{y}: %{x:.3f}<extra></extra>',
     }], {
         ...C, margin: { l: 100, r: 10, t: 5, b: 25 },
-        xaxis: { gridcolor: '#1A1D22', zeroline: true, zerolinecolor: '#333', range: [-0.6, 0.2] },
-        yaxis: { gridcolor: '#1A1D22' },
+        xaxis: { gridcolor: C._grid, zeroline: true, zerolinecolor: C._zero, range: [-0.6, 0.2] },
+        yaxis: { gridcolor: C._grid },
         height: Math.max(200, data.length * 25 + 30),
     }, { responsive: true, displayModeBar: false });
 }
@@ -193,8 +197,8 @@ function renderBarChart(id, data, leftMargin, prefix) {
         hovertemplate: '%{y}: %{x:.3f}<extra></extra>',
     }], {
         ...C, margin: { l: leftMargin, r: 20, t: 5, b: 30 },
-        xaxis: { gridcolor: '#1A1D22', zeroline: true, zerolinecolor: '#333' },
-        yaxis: { gridcolor: '#1A1D22' },
+        xaxis: { gridcolor: C._grid, zeroline: true, zerolinecolor: C._zero },
+        yaxis: { gridcolor: C._grid },
         height: Math.max(250, data.length * 28),
     }, { responsive: true, displayModeBar: false });
 }

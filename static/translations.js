@@ -159,28 +159,42 @@ function toggleLang() {
     window.location = url;
 }
 
-// Theme: light/dark mode
-const THEME = localStorage.getItem('georisk-theme') || 'dark';
-if (THEME === 'light') document.body.classList.add('light');
+// Theme: light/dark mode — light is default
+const THEME = localStorage.getItem('georisk-theme') || 'light';
+if (THEME === 'dark') document.body.classList.add('dark');
+// Note: no class needed for light — it's the default via CSS
+
+// Set initial button text once DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    const isDark = document.body.classList.contains('dark');
+    document.querySelectorAll('.theme-toggle').forEach(btn => {
+        btn.textContent = isDark ? '☀' : '☾';
+    });
+});
+
+function _applyThemeToCharts() {
+    const isDark = document.body.classList.contains('dark');
+    const newBg = isDark ? '#12151A' : '#FFFFFF';
+    const newGrid = isDark ? '#1A1D22' : '#E8E8EC';
+    const newFont = isDark ? '#A0A6AF' : '#555555';
+    const newZero = isDark ? '#333333' : '#CCCCCC';
+    document.querySelectorAll('.js-plotly-plot').forEach(el => {
+        try {
+            Plotly.relayout(el, {
+                'paper_bgcolor': newBg, 'plot_bgcolor': newBg,
+                'font.color': newFont,
+                'xaxis.gridcolor': newGrid, 'yaxis.gridcolor': newGrid,
+                'xaxis.zerolinecolor': newZero, 'yaxis.zerolinecolor': newZero,
+            });
+        } catch(e) {}
+    });
+}
 
 function toggleTheme() {
-    const isLight = document.body.classList.toggle('light');
-    localStorage.setItem('georisk-theme', isLight ? 'light' : 'dark');
-    // Update Plotly charts if they exist
-    const newBg = isLight ? '#FFFFFF' : '#12151A';
-    const newGrid = isLight ? '#E8E8EC' : '#1A1D22';
-    const newFont = isLight ? '#555555' : '#A0A6AF';
-    const newZero = isLight ? '#CCCCCC' : '#333333';
-    document.querySelectorAll('.js-plotly-plot').forEach(el => {
-        Plotly.relayout(el, {
-            'paper_bgcolor': newBg, 'plot_bgcolor': newBg,
-            'font.color': newFont,
-            'xaxis.gridcolor': newGrid, 'yaxis.gridcolor': newGrid,
-            'xaxis.zerolinecolor': newZero, 'yaxis.zerolinecolor': newZero,
-        });
-    });
-    // Update theme button text
+    const isDark = document.body.classList.toggle('dark');
+    localStorage.setItem('georisk-theme', isDark ? 'dark' : 'light');
+    _applyThemeToCharts();
     document.querySelectorAll('.theme-toggle').forEach(btn => {
-        btn.textContent = isLight ? '☾' : '☀';
+        btn.textContent = isDark ? '☀' : '☾';
     });
 }
