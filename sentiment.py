@@ -7,6 +7,60 @@ This uses a custom geopolitical lexicon where words are scored in context.
 import re
 from collections import defaultdict
 
+# German lexicon — for Austrian/German-language outlets (ORF, Der Standard, DW)
+NEGATIVE_WORDS_DE = {
+    # Gewalt / Zerstörung
+    "krieg": -0.5, "angriff": -0.4, "angriffe": -0.4, "attacke": -0.4,
+    "bombe": -0.6, "bomben": -0.6, "bombardierung": -0.6, "beschuss": -0.5,
+    "rakete": -0.4, "raketen": -0.4, "luftangriff": -0.5, "luftangriffe": -0.5,
+    "invasion": -0.6, "offensive": -0.4, "eskalation": -0.5,
+    "drohne": -0.3, "drohnen": -0.3, "vergeltung": -0.4,
+    "explosion": -0.5, "zerstörung": -0.6, "zerstört": -0.5,
+    # Opfer / Leid
+    "getötet": -0.7, "tötung": -0.5, "tod": -0.5, "tote": -0.6,
+    "opfer": -0.5, "verwundet": -0.5, "verletzt": -0.5, "verletzte": -0.5,
+    "zivilisten": -0.3, "flüchtlinge": -0.4, "vertriebene": -0.4,
+    "massaker": -0.9, "völkermord": -0.9, "genozid": -0.9,
+    # Verurteilung
+    "verurteilt": -0.4, "kritisiert": -0.3, "warnt": -0.3, "droht": -0.4,
+    "sanktionen": -0.4, "embargo": -0.5, "blockade": -0.5,
+    "krise": -0.5, "konflikt": -0.4, "spannungen": -0.3,
+    "gefahr": -0.4, "bedrohung": -0.4, "terrorismus": -0.5,
+    # Negative Ergebnisse
+    "scheitert": -0.4, "ablehnung": -0.3, "zusammenbruch": -0.5,
+    "katastrophe": -0.7, "notstand": -0.5, "chaos": -0.5,
+    "verluste": -0.4, "einbruch": -0.4, "einbußen": -0.4,
+    # Wirtschaftlich negativ
+    "sinken": -0.2, "sinkt": -0.2, "fällt": -0.2, "fallen": -0.2,
+    "teurer": -0.2, "teurere": -0.2, "teuerung": -0.3, "inflation": -0.3,
+    "rezession": -0.4, "abschwung": -0.3,
+    # Militärisch
+    "truppen": -0.3, "soldaten": -0.3, "militär": -0.3, "armee": -0.3,
+    "panzer": -0.3, "kampf": -0.4, "gefecht": -0.4,
+    "atomwaffen": -0.6, "nuklear": -0.5, "atomanlagen": -0.4,
+    "achillesferse": -0.4, "unbekannte": -0.2,
+}
+
+POSITIVE_WORDS_DE = {
+    # Frieden / Diplomatie
+    "frieden": 0.5, "friedens": 0.4, "waffenstillstand": 0.4, "waffenruhe": 0.4,
+    "verhandlungen": 0.3, "gespräche": 0.3, "diplomatie": 0.4,
+    "abkommen": 0.4, "einigung": 0.4, "vermittlung": 0.4,
+    "deeskalation": 0.5,
+    # Hilfe
+    "hilfe": 0.3, "humanitär": 0.2, "rettung": 0.4, "wiederaufbau": 0.3,
+    "schutz": 0.3, "sicherheit": 0.2,
+    # Fortschritt
+    "hoffnung": 0.4, "fortschritt": 0.3, "durchbruch": 0.5,
+    "zusammenarbeit": 0.3, "stabilität": 0.3,
+    "freilassung": 0.4, "befreiung": 0.3,
+    # Wirtschaftlich positiv
+    "steigt": 0.2, "steigen": 0.2, "wachstum": 0.3, "erholung": 0.3,
+    "aufschwung": 0.3, "stabil": 0.2,
+}
+
+
+# English lexicon
 # Negative-framing words: suggest critical, hostile, or alarming tone
 # Score from -0.1 (mildly negative) to -1.0 (extremely negative)
 NEGATIVE_WORDS = {
@@ -95,16 +149,26 @@ POSITIVE_WORDS = {
     "liberate": 0.3, "open": 0.2, "opening": 0.2,
 }
 
-# Intensifiers that amplify the nearby sentiment word
+# Intensifiers that amplify the nearby sentiment word (EN + DE)
 INTENSIFIERS = {
     "very": 1.3, "extremely": 1.5, "unprecedented": 1.4, "massive": 1.3,
     "major": 1.2, "severe": 1.3, "brutal": 1.4, "horrific": 1.5,
     "devastating": 1.4, "worst": 1.4, "deadliest": 1.5, "largest": 1.2,
     "extensive": 1.3, "intense": 1.3, "heavy": 1.2,
+    # German
+    "schwer": 1.3, "heftig": 1.3, "massiv": 1.4, "beispiellos": 1.4,
+    "verheerend": 1.5, "schlimmste": 1.4, "größte": 1.2, "schwere": 1.3,
 }
 
-# Negators that flip sentiment direction
-NEGATORS = {"not", "no", "never", "neither", "nor", "without", "refuse", "refuses", "refused", "deny"}
+# Negators that flip sentiment direction (EN + DE)
+NEGATORS = {
+    "not", "no", "never", "neither", "nor", "without", "refuse", "refuses", "refused", "deny",
+    "nicht", "kein", "keine", "keinen", "niemals", "ohne",
+}
+
+# Merge EN + DE lexicons into combined lookup
+ALL_NEGATIVE = {**NEGATIVE_WORDS, **NEGATIVE_WORDS_DE}
+ALL_POSITIVE = {**POSITIVE_WORDS, **POSITIVE_WORDS_DE}
 
 
 def analyze_headline(title, summary=""):
@@ -117,7 +181,8 @@ def analyze_headline(title, summary=""):
     else:
         text_full = text
 
-    words = re.findall(r"[a-z'-]+", text_full)
+    # Match both ASCII and Unicode letters (German umlauts: ä, ö, ü, ß)
+    words = re.findall(r"[a-zäöüß'-]+", text_full)
     scores = []
     subjectivity_signals = 0
     total_words = len(words)
@@ -139,11 +204,11 @@ def analyze_headline(title, summary=""):
             intensifier = INTENSIFIERS[words[i - 1]]
 
         score = 0
-        if word in NEGATIVE_WORDS:
-            score = NEGATIVE_WORDS[word] * intensifier
+        if word in ALL_NEGATIVE:
+            score = ALL_NEGATIVE[word] * intensifier
             subjectivity_signals += 1
-        elif word in POSITIVE_WORDS:
-            score = POSITIVE_WORDS[word] * intensifier
+        elif word in ALL_POSITIVE:
+            score = ALL_POSITIVE[word] * intensifier
             subjectivity_signals += 1
 
         if negated and score != 0:
