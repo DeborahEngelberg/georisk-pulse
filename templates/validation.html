@@ -130,8 +130,8 @@
                     {{ "%+.2f"|format(r.polarity) }}
                 </div>
                 <div class="test-headline">
-                    {% if r.url %}<a href="{{ r.url }}" target="_blank" style="color: var(--text-secondary); text-decoration: none;">{{ r.headline }}</a>{% else %}{{ r.headline }}{% endif %}
-                    {% if r.source %}<span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">{{ r.source }}</span>{% endif %}
+                    {% if r.url %}<a href="{{ r.url }}" target="_blank" style="color: var(--accent-blue); text-decoration: underline; text-underline-offset: 3px;">{{ r.headline }}</a>{% else %}{{ r.headline }}{% endif %}
+                    {% if r.source %}<span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">— {{ r.source }}</span>{% endif %}
                 </div>
             </div>
             {% endif %}
