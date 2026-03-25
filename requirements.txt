@@ -7,4 +7,4 @@ apscheduler==3.11.0
 gunicorn==23.0.0
 textblob==0.18.0.post0
 apify-client==1.8.1
-pytrends==4.9.2
+# pytrends removed — using direct Google Trends API calls instead

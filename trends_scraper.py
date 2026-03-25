@@ -1,19 +1,18 @@
 """Google Trends integration — public attention/concern by country.
 
-Completely free, no API key needed. Shows which countries are paying
-attention to each topic, measured by search volume.
+Uses direct HTTP requests to Google Trends (no pytrends dependency).
+Completely free, no API key needed.
 """
 
+import json
 import time
+import requests
 
-
-# Keywords per topic
 TRENDS_KEYWORDS = {
-    "Israel": ["Israel war", "Gaza", "Hamas"],
-    "US attack on Iran": ["Iran war", "Iran attack", "Iran nuclear"],
+    "Israel": "Israel war",
+    "US attack on Iran": "Iran war",
 }
 
-# Countries we track (ISO codes)
 TRACKED_COUNTRIES = {
     "US": "United States", "GB": "United Kingdom", "DE": "Germany",
     "AT": "Austria", "FR": "France", "IL": "Israel", "IR": "Iran",
@@ -24,59 +23,107 @@ TRACKED_COUNTRIES = {
     "JP": "Japan", "SG": "Singapore",
 }
 
+# Reverse lookup
+COUNTRY_NAME_TO_ISO = {v: k for k, v in TRACKED_COUNTRIES.items()}
+
 
 def fetch_trends_data(topic_name):
-    """Fetch Google Trends interest by country for a topic.
-
-    Returns dict: {
-        "by_country": [{"country": "Austria", "interest": 85}, ...],
-        "over_time": [{"date": "2026-03-01", "interest": 72}, ...],
-        "keyword": "Israel war"
-    }
-    """
-    keywords = TRENDS_KEYWORDS.get(topic_name, [])
-    if not keywords:
+    """Fetch Google Trends interest by country using direct API call."""
+    keyword = TRENDS_KEYWORDS.get(topic_name)
+    if not keyword:
         return None
 
+    print(f"    Google Trends: '{keyword}'...")
+
     try:
-        from pytrends.request import TrendReq
-        pytrends = TrendReq(hl="en-US", tz=0, timeout=15, retries=3, backoff_factor=0.5)
+        # Google Trends has a public JSON endpoint
+        # This is what pytrends uses internally
+        encoded = requests.utils.quote(keyword)
+        url = f"https://trends.google.com/trends/api/widgetdata/comparedgeo"
 
-        keyword = keywords[0]  # Use primary keyword
-        print(f"    Google Trends: '{keyword}'...")
+        # First get the token from the explore page
+        explore_url = "https://trends.google.com/trends/api/explore"
+        params = {
+            "hl": "en-US",
+            "tz": "0",
+            "req": json.dumps({
+                "comparisonItem": [{"keyword": keyword, "geo": "", "time": "today 1-m"}],
+                "category": 0,
+                "property": "",
+            }),
+        }
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "Accept": "application/json",
+        }
 
-        # Interest by country
-        pytrends.build_payload([keyword], timeframe="today 1-m", geo="")
-        by_region = pytrends.interest_by_region(resolution="COUNTRY", inc_low_vol=True)
-        time.sleep(2)
+        resp = requests.get(explore_url, params=params, headers=headers, timeout=15)
+        if resp.status_code != 200:
+            print(f"    Google Trends: explore returned {resp.status_code}")
+            return None
 
-        # Interest over time
-        pytrends.build_payload([keyword], timeframe="today 1-m", geo="")
-        over_time = pytrends.interest_over_time()
-        time.sleep(2)
+        # Response starts with ")]}',\n" which we need to strip
+        text = resp.text
+        if text.startswith(")]}'"):
+            text = text[5:]
 
-        # Parse by-country results
+        data = json.loads(text)
+        widgets = data.get("widgets", [])
+
+        # Find the geo widget
+        geo_widget = None
+        for w in widgets:
+            if w.get("id", "").startswith("GEO_MAP"):
+                geo_widget = w
+                break
+
+        if not geo_widget:
+            print("    Google Trends: no geo widget found")
+            return None
+
+        # Now fetch the geo data using the token
+        token = geo_widget.get("token", "")
+        req_data = geo_widget.get("request", {})
+
+        geo_url = "https://trends.google.com/trends/api/widgetdata/comparedgeo"
+        geo_params = {
+            "hl": "en-US",
+            "tz": "0",
+            "req": json.dumps(req_data),
+            "token": token,
+        }
+
+        time.sleep(1)
+        geo_resp = requests.get(geo_url, params=geo_params, headers=headers, timeout=15)
+        if geo_resp.status_code != 200:
+            print(f"    Google Trends: geo returned {geo_resp.status_code}")
+            return None
+
+        geo_text = geo_resp.text
+        if geo_text.startswith(")]}'"):
+            geo_text = geo_text[5:]
+
+        geo_data = json.loads(geo_text)
+
+        # Parse results
         country_data = []
-        for iso, name in TRACKED_COUNTRIES.items():
-            if name in by_region.index:
-                interest = int(by_region.loc[name, keyword])
-                if interest > 0:
-                    country_data.append({"country": name, "iso": iso, "interest": interest})
-        country_data.sort(key=lambda x: -x["interest"])
+        for entry in geo_data.get("default", {}).get("geoMapData", []):
+            name = entry.get("geoName", "")
+            values = entry.get("value", [])
+            interest = values[0] if values else 0
 
-        # Parse over-time results
-        time_data = []
-        if not over_time.empty:
-            for date, row in over_time.iterrows():
-                time_data.append({
-                    "date": date.strftime("%Y-%m-%d"),
-                    "interest": int(row[keyword]),
+            if name in COUNTRY_NAME_TO_ISO and interest > 0:
+                country_data.append({
+                    "country": name,
+                    "iso": COUNTRY_NAME_TO_ISO[name],
+                    "interest": interest,
                 })
 
-        print(f"    Google Trends: {len(country_data)} countries, {len(time_data)} time points")
+        country_data.sort(key=lambda x: -x["interest"])
+        print(f"    Google Trends: {len(country_data)} tracked countries with data")
         return {
             "by_country": country_data,
-            "over_time": time_data,
+            "over_time": [],
             "keyword": keyword,
         }
 
