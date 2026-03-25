@@ -130,7 +130,7 @@ def backfill_social():
                     "subjectivity": round(random.uniform(0.3, 0.8), 3),
                     "score": random.randint(1, 500),
                     "type": random.choice(["post", "post", "comment"]),
-                    "url": f"https://reddit.com/r/{sub}/comments/example",
+                    "url": f"https://www.reddit.com/r/{sub}/search/?q={'israel' if topic_name == 'Israel' else 'iran+war'}&restrict_sr=1&sort=relevance&t=month",
                 })
         store_social_posts(all_posts)
 
