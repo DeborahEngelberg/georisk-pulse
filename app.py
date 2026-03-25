@@ -126,6 +126,27 @@ def sentiment_page():
     return render_template("sentiment.html", active_tab="sentiment", lang=lang)
 
 
+@app.route("/validation")
+def validation_page():
+    lang = request.args.get("lang", "en")
+    from test_sentiment import TESTS, CATEGORIES
+    from sentiment import analyze_headline
+    results = []
+    for headline, expected, cat in TESTS:
+        r = analyze_headline(headline)
+        p = r["polarity"]
+        if expected == "neg":
+            ok = p < -0.1
+        elif expected == "pos":
+            ok = p > 0.0
+        else:
+            ok = -0.15 <= p <= 0.15
+        results.append({"headline": headline, "expected": expected, "polarity": p, "passed": ok, "cat": cat})
+    passed = sum(1 for r in results if r["passed"])
+    return render_template("validation.html", results=results, passed=passed, total=len(results),
+                           categories=CATEGORIES, active_tab="validation", lang=lang)
+
+
 @app.route("/social")
 def social_page():
     lang = request.args.get("lang", "en")

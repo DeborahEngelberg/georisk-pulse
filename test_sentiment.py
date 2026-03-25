@@ -7,78 +7,90 @@ Run with: python test_sentiment.py
 
 from sentiment import analyze_headline
 
+# (headline, expected_direction, category_key)
 TESTS = [
-    # === CLEARLY NEGATIVE — war, death, destruction (15) ===
-    ("Israel bombs Gaza hospital killing 50 civilians", "neg"),
-    ("Iran launches 300 missiles at Israeli cities", "neg"),
-    ("Russia invades Ukraine, thousands dead", "neg"),
-    ("Massacre in refugee camp leaves hundreds dead", "neg"),
-    ("US airstrikes destroy Iranian nuclear facility", "neg"),
-    ("Suicide bomber kills 30 in Baghdad market", "neg"),
-    ("Hezbollah rockets kill 12 in northern Israel", "neg"),
-    ("Chemical weapons used against civilian population", "neg"),
-    ("Genocide charges filed at International Criminal Court", "neg"),
-    ("City under siege, humanitarian crisis worsens", "neg"),
-    ("Assassination of military commander sparks retaliation fears", "neg"),
-    ("Hundreds of civilians wounded in artillery barrage", "neg"),
-    ("War crimes investigation launched after mass graves discovered", "neg"),
-    ("Drone strike kills entire family including children", "neg"),
-    ("Nuclear threat escalates as enrichment reaches 90%", "neg"),
+    # === CLEARLY NEGATIVE — war, death, destruction ===
+    ("Israel bombs Gaza hospital killing 50 civilians", "neg", "neg_en"),
+    ("Iran launches 300 missiles at Israeli cities", "neg", "neg_en"),
+    ("Russia invades Ukraine, thousands dead", "neg", "neg_en"),
+    ("Massacre in refugee camp leaves hundreds dead", "neg", "neg_en"),
+    ("US airstrikes destroy Iranian nuclear facility", "neg", "neg_en"),
+    ("Suicide bomber kills 30 in Baghdad market", "neg", "neg_en"),
+    ("Hezbollah rockets kill 12 in northern Israel", "neg", "neg_en"),
+    ("Chemical weapons used against civilian population", "neg", "neg_en"),
+    ("Genocide charges filed at International Criminal Court", "neg", "neg_en"),
+    ("City under siege, humanitarian crisis worsens", "neg", "neg_en"),
+    ("Assassination of military commander sparks retaliation fears", "neg", "neg_en"),
+    ("Hundreds of civilians wounded in artillery barrage", "neg", "neg_en"),
+    ("War crimes investigation launched after mass graves discovered", "neg", "neg_en"),
+    ("Drone strike kills entire family including children", "neg", "neg_en"),
+    ("Nuclear threat escalates as enrichment reaches 90%", "neg", "neg_en"),
 
-    # === CLEARLY POSITIVE — peace, diplomacy, de-escalation (10) ===
-    ("Peace deal signed, ceasefire holds across region", "pos"),
-    ("Hostages released as part of negotiated agreement", "pos"),
-    ("Historic peace treaty ends decades of conflict", "pos"),
-    ("Ceasefire agreement reached after marathon negotiations", "pos"),
-    ("Diplomatic breakthrough as leaders meet for peace summit", "pos"),
-    ("UN mediators achieve de-escalation, troops withdraw", "pos"),
-    ("Refugees return home as stability restored", "pos"),
-    ("Aid convoys reach besieged areas after blockade lifted", "pos"),
-    ("Nations sign cooperation agreement on regional security", "pos"),
-    ("Prisoner exchange brings hope for lasting peace", "pos"),
+    # === CLEARLY POSITIVE — peace, diplomacy, de-escalation ===
+    ("Peace deal signed, ceasefire holds across region", "pos", "pos_en"),
+    ("Hostages released as part of negotiated agreement", "pos", "pos_en"),
+    ("Historic peace treaty ends decades of conflict", "pos", "pos_en"),
+    ("Ceasefire agreement reached after marathon negotiations", "pos", "pos_en"),
+    ("Diplomatic breakthrough as leaders meet for peace summit", "pos", "pos_en"),
+    ("UN mediators achieve de-escalation, troops withdraw", "pos", "pos_en"),
+    ("Refugees return home as stability restored", "pos", "pos_en"),
+    ("Aid convoys reach besieged areas after blockade lifted", "pos", "pos_en"),
+    ("Nations sign cooperation agreement on regional security", "pos", "pos_en"),
+    ("Prisoner exchange brings hope for lasting peace", "pos", "pos_en"),
 
-    # === NEUTRAL — factual, no strong framing (5) ===
-    ("UN Security Council meets to discuss Middle East situation", "neutral"),
-    ("Foreign minister arrives in Washington for scheduled talks", "neutral"),
-    ("Parliament debates new foreign policy resolution", "neutral"),
-    ("Oil prices steady as markets await developments", "neutral"),
-    ("Election results certified by electoral commission", "neutral"),
+    # === NEUTRAL — factual, no strong framing ===
+    ("UN Security Council meets to discuss Middle East situation", "neutral", "neutral_en"),
+    ("Foreign minister arrives in Washington for scheduled talks", "neutral", "neutral_en"),
+    ("Parliament debates new foreign policy resolution", "neutral", "neutral_en"),
+    ("Oil prices steady as markets await developments", "neutral", "neutral_en"),
+    ("Election results certified by electoral commission", "neutral", "neutral_en"),
 
-    # === GERMAN NEGATIVE (5) ===
-    ("Raketen treffen Wohngebiet, dutzende Tote und Verletzte", "neg"),
-    ("Schwere Angriffe auf zivile Infrastruktur in Gaza", "neg"),
-    ("Krieg eskaliert weiter, Sanktionen verschärft", "neg"),
-    ("Bombardierung fordert zahlreiche Opfer unter Zivilisten", "neg"),
-    ("Flüchtlingskrise verschärft sich, Tausende Vertriebene", "neg"),
+    # === GERMAN NEGATIVE ===
+    ("Raketen treffen Wohngebiet, dutzende Tote und Verletzte", "neg", "neg_de"),
+    ("Schwere Angriffe auf zivile Infrastruktur in Gaza", "neg", "neg_de"),
+    ("Krieg eskaliert weiter, Sanktionen verschärft", "neg", "neg_de"),
+    ("Bombardierung fordert zahlreiche Opfer unter Zivilisten", "neg", "neg_de"),
+    ("Flüchtlingskrise verschärft sich, Tausende Vertriebene", "neg", "neg_de"),
 
-    # === GERMAN POSITIVE (3) ===
-    ("Waffenstillstand vereinbart, Hoffnung auf Frieden", "pos"),
-    ("Verhandlungen bringen Durchbruch, Abkommen unterzeichnet", "pos"),
-    ("Freilassung der Geiseln als Zeichen der Deeskalation", "pos"),
+    # === GERMAN POSITIVE ===
+    ("Waffenstillstand vereinbart, Hoffnung auf Frieden", "pos", "pos_de"),
+    ("Verhandlungen bringen Durchbruch, Abkommen unterzeichnet", "pos", "pos_de"),
+    ("Freilassung der Geiseln als Zeichen der Deeskalation", "pos", "pos_de"),
 
-    # === GERMAN NEUTRAL (1) ===
-    ("Außenminister reist zu Gesprächen nach Washington", "neutral"),
+    # === GERMAN NEUTRAL ===
+    ("Außenminister reist zu Gesprächen nach Washington", "neutral", "neutral_de"),
 
-    # === TRICKY — positive words in negative context (6) ===
-    ("High-level assassinations form core of military strategy", "neg"),
-    ("Top general killed in precision drone strike", "neg"),
-    ("Unprecedented massive strikes devastate infrastructure", "neg"),
-    ("Productive talks fail to prevent escalation of bombing campaign", "neg"),
-    ("Iran confirms death of top security official in strikes", "neg"),
-    ("BBC accused of misleading coverage of civilian casualties", "neg"),
+    # === TRICKY — positive words in negative context ===
+    ("High-level assassinations form core of military strategy", "neg", "tricky"),
+    ("Top general killed in precision drone strike", "neg", "tricky"),
+    ("Unprecedented massive strikes devastate infrastructure", "neg", "tricky"),
+    ("Productive talks fail to prevent escalation of bombing campaign", "neg", "tricky"),
+    ("Iran confirms death of top security official in strikes", "neg", "tricky"),
+    ("BBC accused of misleading coverage of civilian casualties", "neg", "tricky"),
 
-    # === ADDITIONAL EDGE CASES (10) ===
-    ("Trump threatens to obliterate Iranian power plants", "neg"),
-    ("Sanctions cripple economy as inflation soars", "neg"),
-    ("Cyber attack disrupts critical infrastructure across country", "neg"),
-    ("Emergency evacuation ordered as shelling intensifies", "neg"),
-    ("Blockade cuts off food and medicine to 2 million people", "neg"),
-    ("Both sides agree to extend humanitarian corridor", "pos"),
-    ("International donors pledge reconstruction aid", "pos"),
-    ("Trade agreement opens new economic cooperation", "pos"),
-    ("Energy minister discusses pipeline at bilateral meeting", "neutral"),
-    ("Census data shows population shift in border regions", "neutral"),
+    # === ADDITIONAL EDGE CASES ===
+    ("Trump threatens to obliterate Iranian power plants", "neg", "extra"),
+    ("Sanctions cripple economy as inflation soars", "neg", "extra"),
+    ("Cyber attack disrupts critical infrastructure across country", "neg", "extra"),
+    ("Emergency evacuation ordered as shelling intensifies", "neg", "extra"),
+    ("Blockade cuts off food and medicine to 2 million people", "neg", "extra"),
+    ("Both sides agree to extend humanitarian corridor", "pos", "extra"),
+    ("International donors pledge reconstruction aid", "pos", "extra"),
+    ("Trade agreement opens new economic cooperation", "pos", "extra"),
+    ("Energy minister discusses pipeline at bilateral meeting", "neutral", "extra"),
+    ("Census data shows population shift in border regions", "neutral", "extra"),
 ]
+
+CATEGORIES = {
+    "neg_en":     {"en": "Negative — War, Death, Destruction", "de": "Negativ — Krieg, Tod, Zerstörung"},
+    "pos_en":     {"en": "Positive — Peace, Diplomacy, De-escalation", "de": "Positiv — Frieden, Diplomatie, Deeskalation"},
+    "neutral_en": {"en": "Neutral — Factual Reporting", "de": "Neutral — Sachliche Berichterstattung"},
+    "neg_de":     {"en": "Negative — German Language", "de": "Negativ — Deutsche Schlagzeilen"},
+    "pos_de":     {"en": "Positive — German Language", "de": "Positiv — Deutsche Schlagzeilen"},
+    "neutral_de": {"en": "Neutral — German Language", "de": "Neutral — Deutsche Schlagzeilen"},
+    "tricky":     {"en": "Edge Cases — Tricky Headlines", "de": "Schwierige Fälle — Irreführende Formulierungen"},
+    "extra":      {"en": "Additional Scenarios", "de": "Weitere Szenarien"},
+}
 
 
 def run_tests():
@@ -86,7 +98,7 @@ def run_tests():
     failed = 0
     failures = []
 
-    for headline, expected in TESTS:
+    for headline, expected, _cat in TESTS:
         result = analyze_headline(headline)
         p = result["polarity"]
 

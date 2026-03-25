@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoRisk Pulse — {{ "Validierung" if lang == "de" else "Validation" }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/translations.js"></script>
+    <style>
+        .score-banner {
+            text-align: center; padding: 32px 24px; margin-bottom: 24px;
+            background: var(--bg-panel); border: 1px solid var(--border); border-radius: 4px;
+        }
+        .score-banner .big-score {
+            font-family: var(--font-mono); font-size: 4rem; font-weight: 700;
+        }
+        .score-banner .big-score.perfect { color: var(--risk-low); }
+        .score-banner .big-score.good { color: var(--risk-elevated); }
+        .score-banner .big-score.bad { color: var(--risk-high); }
+        .score-banner .score-label { font-size: 16px; color: var(--text-secondary); margin-top: 8px; }
+
+        .category-header {
+            font-size: 13px; font-weight: 700; color: var(--text-secondary);
+            letter-spacing: 0.5px; text-transform: uppercase;
+            padding: 14px 0 8px; border-bottom: 1px solid var(--border); margin-top: 20px;
+        }
+        .test-row {
+            display: flex; align-items: center; gap: 14px; padding: 10px 0;
+            border-bottom: 1px solid var(--border-subtle); font-size: 14px;
+        }
+        .test-icon { flex: 0 0 28px; font-size: 18px; text-align: center; }
+        .test-expected {
+            flex: 0 0 80px; font-size: 12px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .test-expected.neg { color: var(--risk-high); }
+        .test-expected.pos { color: var(--risk-low); }
+        .test-expected.neutral { color: var(--text-tertiary); }
+        .test-score {
+            flex: 0 0 65px; font-family: var(--font-mono); font-size: 13px;
+            font-weight: 600; text-align: right;
+        }
+        .test-headline { flex: 1; color: var(--text-secondary); }
+        .test-row.failed { background: rgba(217, 48, 37, 0.06); }
+        .test-row.failed .test-headline { color: var(--risk-high); }
+
+        .filter-bar { display: flex; gap: 8px; margin-bottom: 20px; }
+        .filter-btn {
+            padding: 8px 18px; border-radius: 4px; border: 1px solid var(--border);
+            background: var(--bg-panel); color: var(--text-secondary);
+            cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.15s;
+        }
+        .filter-btn:hover { border-color: var(--text-tertiary); }
+        .filter-btn.active { background: var(--accent-gold); color: #fff; border-color: var(--accent-gold); }
+        body.dark .filter-btn.active { color: #000; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="header-brand">GeoRisk Pulse</div>
+        <div class="header-right">
+            <div class="header-meta">{{ "Validierung" if lang == "de" else "Validation" }}</div>
+            <button class="header-toggle theme-toggle" onclick="toggleTheme()">☀</button>
+            <button class="header-toggle" onclick="toggleLang()">{% if lang == 'de' %}EN{% else %}DE{% endif %}</button>
+        </div>
+    </div>
+
+    <nav class="tab-bar">
+        <a href="/?lang={{ lang }}" class="tab {% if active_tab == 'risk' %}tab-active{% endif %}">{{ "Risikoeinschätzung" if lang == "de" else "Risk Scores" }}</a>
+        <a href="/sentiment?lang={{ lang }}" class="tab {% if active_tab == 'sentiment' %}tab-active{% endif %}">{{ "Medienanalyse" if lang == "de" else "Media Analysis" }}</a>
+        <a href="/social?lang={{ lang }}" class="tab {% if active_tab == 'social' %}tab-active{% endif %}">{{ "Öffentliche Meinung" if lang == "de" else "Public Opinion" }}</a>
+        <a href="/validation?lang={{ lang }}" class="tab {% if active_tab == 'validation' %}tab-active{% endif %}">{{ "Validierung" if lang == "de" else "Validation" }}</a>
+    </nav>
+
+    <div class="reading-guide">
+        {% if lang == "de" %}
+        <strong>Was diese Seite zeigt:</strong> Wir testen unsere Tonanalyse mit {{ total }} Schlagzeilen, deren korrekte Bewertung im Voraus bekannt ist. Jede Schlagzeile hat einen erwarteten Ton — <strong style="color:var(--risk-high)">negativ</strong>, <strong style="color:var(--risk-low)">positiv</strong> oder <strong>neutral</strong>. Die Analyse muss diese korrekt erkennen, um als verlässlich zu gelten. Die Tests umfassen Englisch, Deutsch und besonders schwierige Fälle.
+        {% else %}
+        <strong>What this page shows:</strong> We test our tone analysis against {{ total }} headlines with known correct answers. Each headline has an expected tone — <strong style="color:var(--risk-high)">negative</strong>, <strong style="color:var(--risk-low)">positive</strong>, or <strong>neutral</strong>. The analysis must identify these correctly to be considered reliable. Tests cover English, German, and deliberately tricky edge cases.
+        {% endif %}
+    </div>
+
+    <!-- Score banner -->
+    <div class="score-banner">
+        <div class="big-score {% if passed == total %}perfect{% elif passed / total > 0.9 %}good{% else %}bad{% endif %}">
+            {{ passed }}/{{ total }}
+        </div>
+        <div class="score-label">
+            {% if lang == "de" %}
+                {{ "%.1f"|format(passed / total * 100) }} % korrekt — {% if passed == total %}Alle Tests bestanden{% else %}{{ total - passed }} fehlgeschlagen{% endif %}
+            {% else %}
+                {{ "%.1f"|format(passed / total * 100) }}% correct — {% if passed == total %}All tests passed{% else %}{{ total - passed }} failed{% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterTests('all', this)">{{ "Alle" if lang == "de" else "All" }} ({{ total }})</button>
+        <button class="filter-btn" onclick="filterTests('neg', this)">{{ "Negativ" if lang == "de" else "Negative" }} ({{ results|selectattr('expected', 'equalto', 'neg')|list|length }})</button>
+        <button class="filter-btn" onclick="filterTests('pos', this)">{{ "Positiv" if lang == "de" else "Positive" }} ({{ results|selectattr('expected', 'equalto', 'pos')|list|length }})</button>
+        <button class="filter-btn" onclick="filterTests('neutral', this)">Neutral ({{ results|selectattr('expected', 'equalto', 'neutral')|list|length }})</button>
+        {% if total - passed > 0 %}
+        <button class="filter-btn" onclick="filterTests('failed', this)" style="border-color: var(--risk-high); color: var(--risk-high);">{{ "Fehlgeschlagen" if lang == "de" else "Failed" }} ({{ total - passed }})</button>
+        {% endif %}
+    </div>
+
+    <!-- Test results grouped by category -->
+    <div id="testResults">
+        {% set seen_cats = [] %}
+        {% for r in results %}
+            {% if r.cat not in seen_cats %}
+                {% if seen_cats.append(r.cat) %}{% endif %}
+                {% if r.cat in categories %}
+                <div class="category-header">{{ categories[r.cat]['de'] if lang == 'de' else categories[r.cat]['en'] }}</div>
+                {% endif %}
+            {% endif %}
+            {% if r.cat == results[loop.index0].cat %}
+            <div class="test-row {% if not r.passed %}failed{% endif %}" data-expected="{{ r.expected }}" data-passed="{{ r.passed }}">
+                <div class="test-icon">{% if r.passed %}&#10003;{% else %}&#10007;{% endif %}</div>
+                <div class="test-expected {{ r.expected }}">
+                    {% if lang == "de" %}
+                        {% if r.expected == 'neg' %}Negativ{% elif r.expected == 'pos' %}Positiv{% else %}Neutral{% endif %}
+                    {% else %}
+                        {{ r.expected|upper }}
+                    {% endif %}
+                </div>
+                <div class="test-score" style="color: {% if r.polarity < -0.1 %}var(--risk-high){% elif r.polarity > 0.1 %}var(--risk-low){% else %}var(--text-tertiary){% endif %}">
+                    {{ "%+.2f"|format(r.polarity) }}
+                </div>
+                <div class="test-headline">{{ r.headline }}</div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <details class="methodology-toggle" style="margin-top: 24px;">
+        <summary>{{ "Methodik" if lang == "de" else "Methodology" }}</summary>
+        <div class="methodology-content">
+            {% if lang == "de" %}
+            Die Validierung verwendet {{ total }} Schlagzeilen mit vorab bekannter korrekter Bewertung. Negative Schlagzeilen müssen einen Wert unter -0,1 erhalten, positive über 0,0 und neutrale zwischen -0,15 und +0,15. Die Tests decken geopolitische Konflikte, Friedensdiplomatie, sachliche Berichterstattung, deutsche Schlagzeilen und gezielt schwierige Formulierungen ab (z.B. „High-level assassinations" — positive Wörter in negativem Kontext). Dies ist die Standardmethode zur Validierung von NLP-Systemen in der Forschung.
+            {% else %}
+            Validation uses {{ total }} headlines with known correct answers. Negative headlines must score below -0.1, positive above 0.0, and neutral between -0.15 and +0.15. Tests cover geopolitical conflict, peace diplomacy, factual reporting, German-language headlines, and deliberately tricky formulations (e.g., "high-level assassinations" — positive words in negative context). This is the standard approach for validating NLP systems in academic and industry research.
+            {% endif %}
+        </div>
+    </details>
+</div>
+
+<script>
+function filterTests(type, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.test-row').forEach(row => {
+        if (type === 'all') {
+            row.style.display = '';
+        } else if (type === 'failed') {
+            row.style.display = row.dataset.passed === 'False' ? '' : 'none';
+        } else {
+            row.style.display = row.dataset.expected === type ? '' : 'none';
+        }
+    });
+}
+</script>
+</body>
+</html>

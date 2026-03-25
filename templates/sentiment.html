@@ -23,6 +23,7 @@
         <a href="/?lang={{ lang }}" class="tab {% if active_tab == 'risk' %}tab-active{% endif %}">{{ "Risikoeinschätzung" if lang == "de" else "Risk Scores" }}</a>
         <a href="/sentiment?lang={{ lang }}" class="tab {% if active_tab == 'sentiment' %}tab-active{% endif %}">{{ "Medienanalyse" if lang == "de" else "Media Analysis" }}</a>
         <a href="/social?lang={{ lang }}" class="tab {% if active_tab == 'social' %}tab-active{% endif %}">{{ "Öffentliche Meinung" if lang == "de" else "Public Opinion" }}</a>
+            <a href="/validation?lang={{ lang }}" class="tab {% if active_tab == 'validation' %}tab-active{% endif %}">{{ "Validierung" if lang == "de" else "Validation" }}</a>
     </nav>
 
     <div class="topic-selector">
