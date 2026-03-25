@@ -66,7 +66,7 @@ POSITIVE_WORDS_DE = {
 NEGATIVE_WORDS = {
     # Violence / destruction
     "kill": -0.7, "killed": -0.7, "killing": -0.7, "slaughter": -0.9,
-    "massacre": -0.9, "murder": -0.8, "dead": -0.6, "death": -0.5,
+    "massacre": -0.9, "murder": -0.8, "dead": -0.6, "death": -0.5, "suicide": -0.5, "bomber": -0.6,
     "deaths": -0.5, "die": -0.5, "died": -0.5, "destroy": -0.6,
     "destroyed": -0.6, "destruction": -0.6, "devastation": -0.7,
     "rubble": -0.5, "bomb": -0.6, "bombing": -0.6, "bombed": -0.6,
@@ -99,7 +99,7 @@ NEGATIVE_WORDS = {
     "retaliation": -0.4, "retaliates": -0.4, "retaliate": -0.4,
 
     # Crime / illegality
-    "crime": -0.5, "crimes": -0.5, "genocide": -0.9, "atrocity": -0.8,
+    "crime": -0.5, "crimes": -0.5, "genocide": -0.8, "atrocity": -0.8,
     "atrocities": -0.8, "violation": -0.5, "violates": -0.5,
     "unlawful": -0.5, "illegal": -0.5, "banned": -0.3,
 
@@ -122,11 +122,11 @@ NEGATIVE_WORDS = {
 # Positive-framing words: suggest supportive, hopeful, de-escalation tone
 POSITIVE_WORDS = {
     # Peace / diplomacy
-    "peace": 0.5, "ceasefire": 0.4, "truce": 0.4, "talks": 0.3,
-    "negotiate": 0.3, "negotiations": 0.3, "negotiating": 0.3,
-    "diplomacy": 0.4, "diplomatic": 0.3, "dialogue": 0.3,
-    "agreement": 0.4, "deal": 0.3, "treaty": 0.4, "summit": 0.2,
-    "mediating": 0.4, "mediation": 0.4, "de-escalation": 0.5,
+    "peace": 0.5, "ceasefire": 0.4, "truce": 0.4, "talks": 0.15,
+    "negotiate": 0.2, "negotiations": 0.2, "negotiating": 0.2,
+    "diplomacy": 0.3, "diplomatic": 0.2, "dialogue": 0.2,
+    "agreement": 0.4, "deal": 0.3, "treaty": 0.4, "summit": 0.15,
+    "mediating": 0.3, "mediation": 0.3, "de-escalation": 0.5,
     "reconciliation": 0.5,
 
     # Aid / support
@@ -137,16 +137,18 @@ POSITIVE_WORDS = {
     # Progress
     "progress": 0.3, "hope": 0.4, "hopeful": 0.4, "optimism": 0.4,
     "optimistic": 0.4, "breakthrough": 0.5, "success": 0.4,
-    "resolve": 0.3, "resolved": 0.3, "stabilize": 0.3,
-    "cooperation": 0.3, "ally": 0.2, "allies": 0.2, "alliance": 0.2,
+    "resolve": 0.3, "resolved": 0.3, "stabilize": 0.3, "stability": 0.3, "restored": 0.3,
+    "cooperation": 0.3, "ally": 0.2, "allies": 0.2, "alliance": 0.2, "home": 0.2,
 
     # Legal / justice
     "justice": 0.3, "accountability": 0.3, "investigate": 0.2,
     "inquiry": 0.2,
 
-    # Release / freedom
+    # Release / freedom / resolution
     "release": 0.3, "released": 0.3, "free": 0.3, "freed": 0.4,
     "liberate": 0.3, "open": 0.2, "opening": 0.2,
+    "return": 0.2, "returns": 0.2, "lifted": 0.3, "ended": 0.2,
+    "ends": 0.2, "signed": 0.3, "historic": 0.2,
 }
 
 # Intensifiers that amplify the nearby sentiment word (EN + DE)
