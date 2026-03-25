@@ -70,13 +70,38 @@
         <div id="postsList" class="data-table"><div class="loading"></div></div>
     </div>
 
+    <!-- Google Trends -->
+    <div class="chart-panel">
+        <div class="panel-header">{{ "Öffentliche Aufmerksamkeit nach Land (Google Trends)" if lang == "de" else "Public Attention by Country (Google Trends)" }}</div>
+        <div class="panel-subtext">{{ "Relatives Suchvolumen nach Land — zeigt, wo die Bevölkerung aktiv nach diesem Thema sucht. Höher = mehr öffentliches Interesse." if lang == "de" else "Relative search volume by country — shows where people are actively searching for this topic. Higher = more public interest." }}</div>
+        <div id="trendsChart"></div>
+    </div>
+
+    <!-- YouTube Comments -->
+    <div class="panel">
+        <div class="panel-header">{{ "YouTube-Kommentare zu Nachrichtenvideos" if lang == "de" else "YouTube Comments on News Videos" }}</div>
+        <div class="panel-subtext">{{ "Bestbewertete Kommentare unter Nachrichtenvideos von BBC, Al Jazeera, CNN, Fox News u.a. Likes zeigen Zustimmung der Community." if lang == "de" else "Top-rated comments on news videos from BBC, Al Jazeera, CNN, Fox News and others. Likes indicate community agreement." }}</div>
+        <div id="youtubeList" class="data-table"><div class="loading" style="font-size:13px; color: var(--text-tertiary);">{{ "Klicken Sie 'Plattformdaten abrufen' um YouTube/Telegram-Daten zu laden" if lang == "de" else "Click 'Fetch Platform Data' to load YouTube/Telegram data" }}</div></div>
+    </div>
+
+    <!-- Telegram Messages -->
+    <div class="panel">
+        <div class="panel-header">{{ "Telegram — Öffentliche Kanäle" if lang == "de" else "Telegram — Public Channels" }}</div>
+        <div class="panel-subtext">{{ "Nachrichten aus öffentlichen Telegram-Kanälen — besonders relevant für Nahost, Russland und Iran, wo Telegram eine zentrale Kommunikationsplattform ist." if lang == "de" else "Messages from public Telegram channels — especially relevant for the Middle East, Russia, and Iran, where Telegram is a primary communication platform." }}</div>
+        <div id="telegramList" class="data-table"><div class="loading" style="font-size:13px; color: var(--text-tertiary);">{{ "Klicken Sie 'Plattformdaten abrufen' um YouTube/Telegram-Daten zu laden" if lang == "de" else "Click 'Fetch Platform Data' to load YouTube/Telegram data" }}</div></div>
+    </div>
+
+    <!-- Platform Summary -->
+    <div id="platformSummary"></div>
+
     <details class="methodology-toggle">
         <summary>{{ "Methodik & Einschränkungen" if lang == "de" else "Methodology & Caveats" }}</summary>
         <div class="methodology-content" id="methodText"></div>
     </details>
 
-    <div class="actions-minimal">
+    <div class="actions-minimal" style="display: flex; gap: 10px; justify-content: flex-end;">
         <button class="btn-ghost" id="runBtn" onclick="runSocial()"></button>
+        <button class="btn-ghost" id="platformBtn" onclick="runPlatforms()">{{ "Plattformdaten abrufen" if lang == "de" else "Fetch Platform Data" }}</button>
     </div>
 </div>
 
@@ -222,7 +247,79 @@ async function runSocial() {
     catch(e) { alert('Failed'); }
     btn.disabled = false; btn.textContent = t('fetchReddit');
 }
+
+// Platform data: YouTube, Telegram, Trends
+async function loadPlatforms() {
+    const e = encodeURIComponent(currentTopic);
+    const [ytPosts, tgPosts, trends, summary] = await Promise.all([
+        fetch(`/api/platform/posts?topic=${e}&platform=youtube&limit=15`).then(r=>r.json()),
+        fetch(`/api/platform/posts?topic=${e}&platform=telegram&limit=15`).then(r=>r.json()),
+        fetch(`/api/trends?topic=${e}`).then(r=>r.json()),
+        fetch(`/api/platform/summary?topic=${e}`).then(r=>r.json()),
+    ]);
+    renderTrends(trends);
+    renderPlatformPosts('youtubeList', ytPosts, 'likes');
+    renderPlatformPosts('telegramList', tgPosts, 'views');
+    renderPlatformSummary(summary);
+}
+
+function renderTrends(data) {
+    const el = document.getElementById('trendsChart');
+    if (!data || !data.length) { el.innerHTML = `<div class="loading" style="font-size:13px; color:var(--text-tertiary)">${LANG==='de'?'Noch keine Trends-Daten':'No trends data yet'}</div>`; return; }
+    data.sort((a,b) => b.interest - a.interest);
+    Plotly.newPlot(el, [{
+        y: data.map(d => d.country),
+        x: data.map(d => d.interest),
+        type: 'bar', orientation: 'h',
+        marker: { color: data.map(d => {
+            if (d.interest > 70) return '#E85D5D';
+            if (d.interest > 40) return '#D4A843';
+            return '#4CAF7D';
+        })},
+        hovertemplate: '%{y}: %{x}/100<extra></extra>',
+    }], {
+        ...C, margin: { l: 140, r: 20, t: 5, b: 40 },
+        xaxis: { title: LANG==='de'?'Relatives Suchinteresse (0–100)':'Relative Search Interest (0–100)', gridcolor: C._grid, range: [0, 100] },
+        yaxis: { gridcolor: C._grid },
+        height: Math.max(250, data.length * 28),
+    }, { responsive: true, displayModeBar: false });
+}
+
+function renderPlatformPosts(containerId, data, engagementKey) {
+    const el = document.getElementById(containerId);
+    if (!data || !data.length) return; // keep placeholder text
+    const label = engagementKey === 'likes' ? (LANG==='de'?'Likes':'likes') : (LANG==='de'?'Aufrufe':'views');
+    el.innerHTML = data.map(p => `
+        <div class="data-row">
+            <div class="col-tone ${pClass(p.polarity||0)}">${toneWord(p.polarity||0)}</div>
+            <div class="col-source">${p.channel ? p.channel.substring(0,20) : p.platform}</div>
+            <div class="col-title" style="color:var(--text-secondary)">${(p.text||'').substring(0,150)}</div>
+            <div class="col-meta">${p.engagement||0} ${label}</div>
+        </div>`).join('');
+}
+
+function renderPlatformSummary(data) {
+    if (!data || !data.length) return;
+    const el = document.getElementById('platformSummary');
+    const names = {youtube: 'YouTube', telegram: 'Telegram', reddit: 'Reddit'};
+    el.innerHTML = `<div class="summary-grid" style="margin-top:16px">${data.map(d => `
+        <div class="summary-card">
+            <div class="s-label">${names[d.platform]||d.platform}</div>
+            <div class="s-value">${d.count}</div>
+            <div class="s-detail">${LANG==='de'?'Beiträge':'posts'} · ${LANG==='de'?'Ø Ton':'avg tone'}: ${(d.avg_polarity||0).toFixed(2)}</div>
+        </div>`).join('')}</div>`;
+}
+
+async function runPlatforms() {
+    const btn = document.getElementById('platformBtn');
+    btn.disabled = true; btn.textContent = LANG==='de'?'Wird abgerufen…':'Fetching...';
+    try { await fetch('/run/platforms', {method:'POST'}); await loadPlatforms(); }
+    catch(e) { alert('Failed: ' + e.message); }
+    btn.disabled = false; btn.textContent = LANG==='de'?'Plattformdaten abrufen':'Fetch Platform Data';
+}
+
 loadAll();
+loadPlatforms();
 </script>
 </body>
 </html>

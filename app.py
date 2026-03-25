@@ -8,13 +8,14 @@ from database import (
     get_sentiment_trend, get_sentiment_divergence,
     get_social_by_group, get_social_trend, get_social_posts_sample,
     get_media_public_gap, get_region_stats, get_sparkline_data,
+    get_platform_posts, get_platform_summary, get_trends_by_country,
 )
 from economic_context import (
     ECONOMIC_EXPOSURE, HISTORICAL_BENCHMARKS, EU_AUSTRIA_EXPOSURE,
     ECONOMIC_EXPOSURE_DE, HISTORICAL_BENCHMARKS_DE, EU_AUSTRIA_EXPOSURE_DE,
     REGION_NAMES_DE,
 )
-from scheduler import run_daily_pipeline, run_sentiment_pipeline, run_social_pipeline
+from scheduler import run_daily_pipeline, run_sentiment_pipeline, run_social_pipeline, run_platform_pipeline
 
 app = Flask(__name__)
 init_db()
@@ -41,6 +42,7 @@ sched = BackgroundScheduler(daemon=True)
 sched.add_job(run_daily_pipeline, "cron", hour=6, minute=0, id="daily_pipeline")
 sched.add_job(run_sentiment_pipeline, "cron", hour=6, minute=15, id="sentiment_pipeline")
 sched.add_job(run_social_pipeline, "cron", hour=6, minute=30, id="social_pipeline")
+sched.add_job(run_platform_pipeline, "cron", hour=7, minute=0, id="platform_pipeline")
 sched.start()
 
 
@@ -223,6 +225,24 @@ def api_social_media_gap():
     return jsonify(get_media_public_gap(request.args.get("topic", "Israel")))
 
 
+# --- Platform API (YouTube, Telegram, Trends) ---
+@app.route("/api/platform/posts")
+def api_platform_posts():
+    return jsonify(get_platform_posts(
+        request.args.get("topic", "Israel"),
+        request.args.get("platform"),
+        int(request.args.get("limit", 30)),
+    ))
+
+@app.route("/api/platform/summary")
+def api_platform_summary():
+    return jsonify(get_platform_summary(request.args.get("topic", "Israel")))
+
+@app.route("/api/trends")
+def api_trends():
+    return jsonify(get_trends_by_country(request.args.get("topic", "Israel")))
+
+
 # --- Pipeline triggers ---
 @app.route("/run", methods=["POST"])
 def trigger_run():
@@ -238,6 +258,11 @@ def trigger_sentiment():
 @app.route("/run/social", methods=["POST"])
 def trigger_social():
     run_social_pipeline()
+    return jsonify({"status": "ok"})
+
+@app.route("/run/platforms", methods=["POST"])
+def trigger_platforms():
+    run_platform_pipeline()
     return jsonify({"status": "ok"})
 
 

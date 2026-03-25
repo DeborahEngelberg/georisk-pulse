@@ -90,6 +90,31 @@ def init_db():
         );
         CREATE INDEX IF NOT EXISTS idx_social_topic ON social_posts(topic, country);
         CREATE INDEX IF NOT EXISTS idx_social_agg ON social_aggregates(topic, group_type, date);
+
+        CREATE TABLE IF NOT EXISTS platform_posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            topic TEXT NOT NULL,
+            platform TEXT NOT NULL,
+            country TEXT,
+            channel TEXT,
+            title TEXT,
+            text TEXT,
+            polarity REAL DEFAULT 0,
+            engagement INTEGER DEFAULT 0,
+            url TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS trends_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            topic TEXT NOT NULL,
+            keyword TEXT NOT NULL,
+            country TEXT NOT NULL,
+            interest INTEGER DEFAULT 0,
+            date TEXT NOT NULL,
+            UNIQUE(topic, keyword, country, date)
+        );
+        CREATE INDEX IF NOT EXISTS idx_platform ON platform_posts(topic, platform);
+        CREATE INDEX IF NOT EXISTS idx_trends ON trends_data(topic, date);
     """)
     conn.commit()
     conn.close()
@@ -379,6 +404,68 @@ def get_social_trend(topic, group_type, days=28):
         FROM social_aggregates WHERE topic = ? AND group_type = ? AND date >= ?
         ORDER BY date
     """, (topic, group_type, cutoff)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def store_platform_posts(posts):
+    conn = get_conn()
+    conn.executemany(
+        """INSERT INTO platform_posts (topic, platform, country, channel, title, text, polarity, engagement, url)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        [(p["topic"], p["platform"], p.get("country", ""), p.get("channel", ""),
+          p.get("title", ""), p.get("text", "")[:500], p.get("polarity", 0),
+          p.get("engagement", 0), p.get("url", ""))
+         for p in posts],
+    )
+    conn.commit()
+    conn.close()
+
+
+def store_trends(topic, keyword, country_data, date_str):
+    conn = get_conn()
+    for item in country_data:
+        conn.execute(
+            "INSERT OR REPLACE INTO trends_data (topic, keyword, country, interest, date) VALUES (?, ?, ?, ?, ?)",
+            (topic, keyword, item["country"], item["interest"], date_str),
+        )
+    conn.commit()
+    conn.close()
+
+
+def get_platform_posts(topic, platform=None, limit=30):
+    conn = get_conn()
+    if platform:
+        rows = conn.execute(
+            "SELECT * FROM platform_posts WHERE topic=? AND platform=? ORDER BY engagement DESC LIMIT ?",
+            (topic, platform, limit)).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM platform_posts WHERE topic=? ORDER BY engagement DESC LIMIT ?",
+            (topic, limit)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_platform_summary(topic):
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT platform, COUNT(*) as count, AVG(polarity) as avg_polarity,
+               AVG(engagement) as avg_engagement
+        FROM platform_posts WHERE topic=?
+        GROUP BY platform
+    """, (topic,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_trends_by_country(topic):
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT country, interest, date FROM trends_data
+        WHERE topic=? AND date=(SELECT MAX(date) FROM trends_data WHERE topic=?)
+        ORDER BY interest DESC
+    """, (topic, topic)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 

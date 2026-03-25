@@ -144,8 +144,60 @@ def run_social_pipeline():
     print("\nSocial pipeline complete.")
 
 
+def run_platform_pipeline():
+    """Run YouTube, Telegram, and Google Trends pipelines."""
+    from youtube_scraper import fetch_youtube_comments
+    from telegram_scraper import fetch_telegram_messages
+    from trends_scraper import fetch_trends_data, TRENDS_KEYWORDS
+    from sentiment import analyze_headline
+    from database import store_platform_posts, store_trends
+
+    print(f"[{datetime.now(timezone.utc).isoformat()}] Starting platform pipeline...")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    for topic_name in ["Israel", "US attack on Iran"]:
+        all_posts = []
+
+        # YouTube comments
+        yt_comments = fetch_youtube_comments(topic_name)
+        for c in yt_comments:
+            sent = analyze_headline(c["text"])
+            all_posts.append({
+                "topic": topic_name, "platform": "youtube",
+                "country": "", "channel": c.get("video_title", "")[:100],
+                "title": c.get("video_title", "")[:200], "text": c["text"],
+                "polarity": sent["polarity"], "engagement": c.get("likes", 0),
+                "url": "",
+            })
+
+        # Telegram messages
+        tg_messages = fetch_telegram_messages(topic_name)
+        for m in tg_messages:
+            sent = analyze_headline(m["text"])
+            all_posts.append({
+                "topic": topic_name, "platform": "telegram",
+                "country": m.get("country", ""), "channel": m.get("channel", ""),
+                "title": m.get("channel", ""), "text": m["text"],
+                "polarity": sent["polarity"], "engagement": m.get("views", 0),
+                "url": "",
+            })
+
+        if all_posts:
+            store_platform_posts(all_posts)
+            print(f"  {topic_name}: stored {len(all_posts)} platform posts")
+
+        # Google Trends
+        trends = fetch_trends_data(topic_name)
+        if trends and trends.get("by_country"):
+            store_trends(topic_name, trends["keyword"], trends["by_country"], today)
+            print(f"  {topic_name}: stored trends for {len(trends['by_country'])} countries")
+
+    print("Platform pipeline complete.")
+
+
 if __name__ == "__main__":
     init_db()
     run_daily_pipeline()
     run_sentiment_pipeline()
     run_social_pipeline()
+    run_platform_pipeline()
