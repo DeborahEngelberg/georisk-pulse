@@ -65,7 +65,7 @@ const T = {
     byCommunitySub: "Individual Reddit communities. Each subreddit (e.g. r/Austria, r/worldnews) represents a different audience.",
     samplePosts: "Sample Posts and Comments",
     samplePostsSub: "The most-discussed posts on this topic, sorted by engagement. Click any title to read the full discussion.",
-    methodologySocial: "Public sentiment derived from country-specific Reddit communities (16 countries). Analysis based on post titles from subreddit RSS feeds — comments are not included due to Reddit API limitations. Reddit skews young, male, English-speaking, and tech-literate — not representative of full populations. Country subreddits (e.g., r/iran) may reflect diaspora views. Upvote scores reflect platform dynamics, not scientific polling. Sentiment scored via the same geopolitical lexicon used in media analysis for cross-comparability.",
+    methodologySocial: "Public sentiment derived from country-specific Reddit communities (16 countries). When available, analysis includes both post titles and top-rated comments with upvote scores. Reddit skews young, male, English-speaking, and tech-literate — not representative of full populations. Country subreddits (e.g., r/iran) may reflect diaspora views. Upvote scores reflect platform dynamics, not scientific polling. Sentiment scored via the same geopolitical lexicon used in media analysis for cross-comparability.",
     fetchReddit: "Fetch Reddit Data", fetching: "Fetching...",
     methodologyCaveats: "Methodology & Caveats",
     // Months
@@ -131,7 +131,7 @@ const T = {
     byCommunitySub: "Einzelne Reddit-Communities. Jedes Subreddit (z.B. r/Austria, r/worldnews) steht für ein anderes Publikum.",
     samplePosts: "Beispielbeiträge und Kommentare",
     samplePostsSub: "Die meistdiskutierten Beiträge zu diesem Thema, sortiert nach Resonanz. Klicken Sie auf einen Titel, um die gesamte Diskussion zu lesen.",
-    methodologySocial: "Öffentliche Stimmung abgeleitet aus länderspezifischen Reddit-Communities (16 Länder). Die Analyse basiert auf Beitragstiteln aus Subreddit-RSS-Feeds — Kommentare sind aufgrund von Reddit-API-Einschränkungen nicht einbezogen. Reddit-Nutzerinnen und -Nutzer sind überproportional jung, männlich, englischsprachig und technikaffin — nicht repräsentativ für die Gesamtbevölkerung. Länderspezifische Subreddits (z.B. r/iran) spiegeln möglicherweise eher Diaspora-Perspektiven wider. Stimmungsbewertung mittels desselben geopolitischen Lexikons wie in der Medienanalyse, um Vergleichbarkeit zu gewährleisten.",
+    methodologySocial: "Öffentliche Stimmung abgeleitet aus länderspezifischen Reddit-Communities (16 Länder). Sofern verfügbar, umfasst die Analyse sowohl Beitragstitel als auch bestbewertete Kommentare mit Upvote-Bewertungen. Reddit-Nutzerinnen und -Nutzer sind überproportional jung, männlich, englischsprachig und technikaffin — nicht repräsentativ für die Gesamtbevölkerung. Länderspezifische Subreddits (z.B. r/iran) spiegeln möglicherweise eher Diaspora-Perspektiven wider. Stimmungsbewertung mittels desselben geopolitischen Lexikons wie in der Medienanalyse, um Vergleichbarkeit zu gewährleisten.",
     fetchReddit: "Reddit-Daten abrufen", fetching: "Wird abgerufen …",
     methodologyCaveats: "Methodik & Einschränkungen",
     months: ['','Jän','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'],
