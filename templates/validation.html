@@ -129,7 +129,10 @@
                 <div class="test-score" style="color: {% if r.polarity < -0.1 %}var(--risk-high){% elif r.polarity > 0.1 %}var(--risk-low){% else %}var(--text-tertiary){% endif %}">
                     {{ "%+.2f"|format(r.polarity) }}
                 </div>
-                <div class="test-headline">{{ r.headline }}</div>
+                <div class="test-headline">
+                    {% if r.url %}<a href="{{ r.url }}" target="_blank" style="color: var(--text-secondary); text-decoration: none;">{{ r.headline }}</a>{% else %}{{ r.headline }}{% endif %}
+                    {% if r.source %}<span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">{{ r.source }}</span>{% endif %}
+                </div>
             </div>
             {% endif %}
         {% endfor %}

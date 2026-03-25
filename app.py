@@ -132,7 +132,7 @@ def validation_page():
     from test_sentiment import TESTS, CATEGORIES
     from sentiment import analyze_headline
     results = []
-    for headline, expected, cat in TESTS:
+    for headline, expected, cat, source, url in TESTS:
         r = analyze_headline(headline)
         p = r["polarity"]
         if expected == "neg":
@@ -141,7 +141,7 @@ def validation_page():
             ok = p > 0.0
         else:
             ok = -0.15 <= p <= 0.15
-        results.append({"headline": headline, "expected": expected, "polarity": p, "passed": ok, "cat": cat})
+        results.append({"headline": headline, "expected": expected, "polarity": p, "passed": ok, "cat": cat, "source": source, "url": url})
     passed = sum(1 for r in results if r["passed"])
     return render_template("validation.html", results=results, passed=passed, total=len(results),
                            categories=CATEGORIES, active_tab="validation", lang=lang)
