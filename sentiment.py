@@ -117,6 +117,10 @@ NEGATIVE_WORDS = {
     # Misleading / deception
     "misleading": -0.5, "lies": -0.5, "propaganda": -0.5, "disinformation": -0.5,
     "false": -0.3, "fabricated": -0.5,
+    # Control / surveillance / oppression
+    "dissent": -0.3, "control": -0.2, "surveillance": -0.3, "track": -0.2,
+    "miscalculated": -0.4, "miscalculation": -0.4,
+    "security zone": -0.3, "occupation": -0.5, "occupied": -0.4,
 }
 
 # Positive-framing words: suggest supportive, hopeful, de-escalation tone
@@ -149,6 +153,7 @@ POSITIVE_WORDS = {
     "liberate": 0.3, "open": 0.2, "opening": 0.2,
     "return": 0.2, "returns": 0.2, "lifted": 0.3, "ended": 0.2,
     "ends": 0.2, "signed": 0.3, "historic": 0.2,
+    "liberty": 0.3, "help": 0.2, "contact": 0.15,
 }
 
 # Intensifiers that amplify the nearby sentiment word (EN + DE)
@@ -184,7 +189,7 @@ def analyze_headline(title, summary=""):
         text_full = text
 
     # Match both ASCII and Unicode letters (German umlauts: ä, ö, ü, ß)
-    words = re.findall(r"[a-zäöüß'-]+", text_full)
+    words = [w.strip("'\"") for w in re.findall(r"[a-zäöüß'-]+", text_full)]
     scores = []
     subjectivity_signals = 0
     total_words = len(words)
