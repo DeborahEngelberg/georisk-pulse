@@ -268,8 +268,13 @@ def trigger_social():
 
 @app.route("/run/platforms", methods=["POST"])
 def trigger_platforms():
-    run_platform_pipeline()
-    return jsonify({"status": "ok"})
+    try:
+        run_platform_pipeline()
+        summary = get_platform_summary("Israel")
+        return jsonify({"status": "ok", "stored": len(summary), "details": summary})
+    except Exception as e:
+        import traceback
+        return jsonify({"status": "error", "error": str(e), "trace": traceback.format_exc()}), 500
 
 
 if __name__ == "__main__":
