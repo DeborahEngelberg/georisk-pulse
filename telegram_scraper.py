@@ -1,100 +1,110 @@
 """Telegram public channel scraper via Apify.
 
-Fetches messages from public Telegram channels covering geopolitics.
-Uses web preview (t.me/s/channel) — no Telegram API key needed.
+Uses the proven spry_wholemeal/reddit-scraper pattern — but for Telegram.
+Scrapes public channel web previews at t.me/s/channel.
 """
 
 import os
+import re
+import requests
 
-APIFY_TOKEN = os.environ.get("APIFY_TOKEN")
 
+# Only channels with web preview enabled (t.me/s/channel works)
 TELEGRAM_CHANNELS = {
     "Israel": {
-        "bbcnews": {"country": "UK", "label": "BBC News"},
-        "caborshama1": {"country": "Palestine", "label": "Palestine Resistance"},
-        "rt_com": {"country": "Russia", "label": "RT News"},
+        "RVvoenkor": {"country": "Russia", "label": "Russian War Correspondent"},
+        "MiddleEastObserver": {"country": "Global", "label": "Middle East Observer"},
+        "gazaupdates": {"country": "Palestine", "label": "Gaza Updates"},
+        "CIG_telegram": {"country": "Global", "label": "Clandestine Intel"},
+        "intelslava": {"country": "Russia", "label": "Intel Slava Z"},
+        "militaryintel": {"country": "Global", "label": "Military Intel"},
+        "IsraelRadar": {"country": "Israel", "label": "Israel Radar"},
     },
     "US attack on Iran": {
-        "PressTV": {"country": "Iran", "label": "Press TV"},
-        "bbcnews": {"country": "UK", "label": "BBC News"},
-        "rt_com": {"country": "Russia", "label": "RT News"},
+        "RVvoenkor": {"country": "Russia", "label": "Russian War Correspondent"},
+        "MiddleEastObserver": {"country": "Global", "label": "Middle East Observer"},
+        "CIG_telegram": {"country": "Global", "label": "Clandestine Intel"},
+        "intelslava": {"country": "Russia", "label": "Intel Slava Z"},
+        "militaryintel": {"country": "Global", "label": "Military Intel"},
+        "ukrainenewslive": {"country": "Ukraine", "label": "Ukraine News Live"},
     },
 }
 
 
-def fetch_telegram_messages(topic_name, max_messages=15):
-    """Fetch messages from public Telegram channels."""
-    if not APIFY_TOKEN:
-        print("    No APIFY_TOKEN — skipping Telegram")
+def _scrape_telegram_web(channel_id, max_messages=15):
+    """Scrape public Telegram channel via web preview (no API needed)."""
+    url = f"https://t.me/s/{channel_id}"
+    try:
+        resp = requests.get(url, timeout=15, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        })
+        if resp.status_code != 200:
+            return []
+
+        # Extract message text from HTML
+        messages = re.findall(
+            r'<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>',
+            resp.text, re.DOTALL
+        )
+        # Extract view counts
+        views = re.findall(
+            r'<span class="tgme_widget_message_views">([^<]+)</span>',
+            resp.text
+        )
+
+        results = []
+        for i, msg_html in enumerate(messages[:max_messages]):
+            text = re.sub(r'<[^>]+>', '', msg_html).strip()
+            if len(text) < 15:
+                continue
+
+            view_count = 0
+            if i < len(views):
+                v = views[i].strip()
+                if 'K' in v:
+                    view_count = int(float(v.replace('K', '')) * 1000)
+                elif 'M' in v:
+                    view_count = int(float(v.replace('M', '')) * 1000000)
+                else:
+                    try:
+                        view_count = int(v)
+                    except ValueError:
+                        pass
+
+            results.append({"text": text[:500], "views": view_count})
+
+        return results
+    except Exception as e:
+        print(f"      Web scrape error for @{channel_id}: {e}")
         return []
 
+
+def fetch_telegram_messages(topic_name, max_messages=15):
+    """Fetch messages from public Telegram channels.
+
+    Uses direct web scraping of t.me/s/channel — no Apify or API key needed.
+    """
     channels = TELEGRAM_CHANNELS.get(topic_name, {})
     if not channels:
         return []
 
-    try:
-        from apify_client import ApifyClient
-        client = ApifyClient(APIFY_TOKEN)
+    all_messages = []
+    for channel_id, info in channels.items():
+        print(f"    Telegram: @{channel_id}...")
+        messages = _scrape_telegram_web(channel_id, max_messages)
+        for m in messages:
+            all_messages.append({
+                "text": m["text"],
+                "views": m["views"],
+                "forwards": 0,
+                "channel": info["label"],
+                "channel_id": channel_id,
+                "country": info["country"],
+                "source": "Telegram",
+                "platform": "telegram",
+                "url": f"https://t.me/s/{channel_id}",
+            })
+        print(f"      Got {len(messages)} messages")
 
-        all_messages = []
-        for channel_id, info in channels.items():
-            print(f"    Telegram: @{channel_id}...")
-            try:
-                run = client.actor("apify/web-scraper").call(
-                    run_input={
-                        "startUrls": [{"url": f"https://t.me/s/{channel_id}"}],
-                        "pageFunction": """async function pageFunction(context) {
-                            const { page, request } = context;
-                            await page.waitForSelector('.tgme_widget_message_wrap', { timeout: 10000 });
-                            const messages = await page.$$eval('.tgme_widget_message_text', els =>
-                                els.map(el => el.innerText).filter(t => t.length > 10)
-                            );
-                            const views = await page.$$eval('.tgme_widget_message_views', els =>
-                                els.map(el => {
-                                    const t = el.innerText.trim();
-                                    if (t.includes('K')) return parseFloat(t) * 1000;
-                                    if (t.includes('M')) return parseFloat(t) * 1000000;
-                                    return parseInt(t) || 0;
-                                })
-                            );
-                            return messages.map((text, i) => ({
-                                text: text.substring(0, 500),
-                                views: views[i] || 0,
-                                url: request.url,
-                            }));
-                        }""",
-                    },
-                    timeout_secs=60,
-                )
-
-                count = 0
-                for item in client.dataset(run["defaultDatasetId"]).iterate_items():
-                    text = item.get("text", "")
-                    if not text or len(text) < 15:
-                        continue
-                    all_messages.append({
-                        "text": text[:500],
-                        "views": item.get("views", 0) or 0,
-                        "forwards": 0,
-                        "channel": info["label"],
-                        "channel_id": channel_id,
-                        "country": info["country"],
-                        "source": "Telegram",
-                        "platform": "telegram",
-                        "url": f"https://t.me/s/{channel_id}",
-                    })
-                    count += 1
-                    if count >= max_messages:
-                        break
-                print(f"      Got {count} messages")
-
-            except Exception as e:
-                print(f"      Error on @{channel_id}: {e}")
-                continue
-
-        print(f"    Telegram total: {len(all_messages)} messages")
-        return all_messages
-
-    except Exception as e:
-        print(f"    Telegram error: {e}")
-        return []
+    print(f"    Telegram total: {len(all_messages)} messages")
+    return all_messages

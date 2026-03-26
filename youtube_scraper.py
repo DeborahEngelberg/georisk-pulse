@@ -1,22 +1,22 @@
-"""YouTube comments scraper via Apify.
+"""YouTube video data scraper via Apify.
 
-Fetches comments from news videos about geopolitical topics.
-Uses a single actor call with search URLs.
+Fetches video titles and metadata from YouTube search results
+about geopolitical topics. Uses the proven apify/youtube-scraper actor.
 """
 
 import os
 
-APIFY_TOKEN = os.environ.get("APIFY_TOKEN")
 
 YOUTUBE_QUERIES = {
-    "Israel": ["israel gaza war 2026", "israel iran strikes", "IDF hamas"],
-    "US attack on Iran": ["US iran war 2026", "trump iran strike", "iran nuclear attack"],
+    "Israel": ["israel gaza war", "israel iran strikes", "IDF hamas 2026"],
+    "US attack on Iran": ["US iran war", "trump iran strike", "iran nuclear attack 2026"],
 }
 
 
-def fetch_youtube_comments(topic_name, max_comments=20):
-    """Fetch YouTube comments via Apify."""
-    if not APIFY_TOKEN:
+def fetch_youtube_comments(topic_name, max_videos=10):
+    """Fetch YouTube video data via Apify."""
+    token = os.environ.get("APIFY_TOKEN")
+    if not token:
         print("    No APIFY_TOKEN — skipping YouTube")
         return []
 
@@ -26,43 +26,38 @@ def fetch_youtube_comments(topic_name, max_comments=20):
 
     try:
         from apify_client import ApifyClient
-        client = ApifyClient(APIFY_TOKEN)
+        client = ApifyClient(token)
 
-        # Use the dedicated comments scraper with search URLs
-        search_urls = [
-            f"https://www.youtube.com/results?search_query={q.replace(' ', '+')}"
-            for q in queries[:2]
-        ]
+        all_items = []
+        for query in queries[:2]:
+            print(f"    YouTube: searching '{query}'...")
+            try:
+                run = client.actor("apidojo/youtube-scraper").call(
+                    run_input={
+                        "searchKeywords": query,
+                        "maxResults": max_videos,
+                    },
+                    timeout_secs=90,
+                )
+                for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+                    title = item.get("title", "")
+                    if not title:
+                        continue
+                    all_items.append({
+                        "text": title,
+                        "likes": item.get("likes", 0) or item.get("numberOfLikes", 0) or 0,
+                        "author": item.get("channelName", ""),
+                        "video_title": title,
+                        "source": "YouTube",
+                        "platform": "youtube",
+                        "url": item.get("url", ""),
+                    })
+            except Exception as e:
+                print(f"    YouTube query error for '{query}': {e}")
+                continue
 
-        print(f"    YouTube: searching {queries[:2]}...")
-
-        # Try the comments scraper directly with video search
-        run = client.actor("apidojo/youtube-scraper").call(
-            run_input={
-                "startUrls": [{"url": u} for u in search_urls],
-                "maxResults": 5,
-                "maxResultsShorts": 0,
-                "subtitlesLanguage": "en",
-            },
-            timeout_secs=120,
-        )
-
-        all_comments = []
-        for item in client.dataset(run["defaultDatasetId"]).iterate_items():
-            title = item.get("title", "")
-            # The scraper returns videos — extract title as a data point
-            all_comments.append({
-                "text": title,
-                "likes": item.get("numberOfLikes", 0) or 0,
-                "author": item.get("channelName", ""),
-                "video_title": title,
-                "source": "YouTube",
-                "platform": "youtube",
-                "url": item.get("url", ""),
-            })
-
-        print(f"    YouTube: {len(all_comments)} items collected")
-        return all_comments
+        print(f"    YouTube total: {len(all_items)} items")
+        return all_items
 
     except Exception as e:
         print(f"    YouTube error: {e}")
