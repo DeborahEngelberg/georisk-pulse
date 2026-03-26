@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GeoRisk Pulse — {{ "Medienanalyse" if lang == "de" else "Media Analysis" }}</title>
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/loading.css">
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <script src="/static/translations.js"></script>
 </head>
 <body>
+<div id="loading-screen"><div class="loader-brand">GeoRisk Pulse</div><div class="loader-spinner"></div><div class="loader-text">{{ "Daten werden geladen..." if lang == "de" else "Loading data..." }}</div></div>
 <div class="container">
     <div class="header">
         <div class="header-brand">GeoRisk Pulse</div>

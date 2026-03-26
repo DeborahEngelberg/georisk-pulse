@@ -159,6 +159,15 @@ function toggleLang() {
     window.location = url;
 }
 
+// Loading screen — dismiss when page is ready
+window.addEventListener('load', function() {
+    const loader = document.getElementById('loading-screen');
+    if (loader) {
+        loader.classList.add('loaded');
+        setTimeout(() => loader.remove(), 600);
+    }
+});
+
 // Theme: light/dark mode — light is default
 const THEME = localStorage.getItem('georisk-theme') || 'light';
 if (THEME === 'dark') document.body.classList.add('dark');
