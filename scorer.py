@@ -1,11 +1,18 @@
 import spacy
 
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    from spacy.cli import download
-    download("en_core_web_sm")
-    nlp = spacy.load("en_core_web_sm")
+# Lazy-load spaCy model to reduce startup memory on small instances
+_nlp = None
+
+def _get_nlp():
+    global _nlp
+    if _nlp is None:
+        try:
+            _nlp = spacy.load("en_core_web_sm")
+        except OSError:
+            from spacy.cli import download
+            download("en_core_web_sm")
+            _nlp = spacy.load("en_core_web_sm")
+    return _nlp
 
 # Weighted risk keywords: word -> weight (higher = riskier)
 RISK_KEYWORDS = {
@@ -57,7 +64,7 @@ ENTITY_AMPLIFIERS = {
 
 def score_headline(title):
     """Score a single headline 0-100 based on risk keywords and NER."""
-    doc = nlp(title.lower())
+    doc = _get_nlp()(title.lower())
     raw_score = 0
     matched_keywords = 0
 

@@ -20,23 +20,29 @@ from scheduler import run_daily_pipeline, run_sentiment_pipeline, run_social_pip
 app = Flask(__name__)
 init_db()
 
-# Auto-populate on first start (works under both gunicorn and python app.py)
-def _bootstrap():
-    """Run backfills if DB is empty — called once at startup."""
-    if not get_scores_last_n_days(1):
-        print("No risk data — running risk backfill (7 days + today)...")
-        from backfill import backfill
-        backfill()
-    if not get_sentiment_by_group("Israel", "outlet"):
-        print("No sentiment data — running sentiment backfill (28 days)...")
-        from backfill_sentiment import backfill_sentiment
-        backfill_sentiment()
-    if not get_social_by_group("Israel", "country"):
-        print("No social data — running social backfill (28 days)...")
-        from backfill_social import backfill_social
-        backfill_social()
+# Auto-populate in background so server starts immediately
+import threading
 
-_bootstrap()
+def _bootstrap():
+    """Run backfills if DB is empty — runs in background thread."""
+    try:
+        if not get_scores_last_n_days(1):
+            print("No risk data — running risk backfill...")
+            from backfill import backfill
+            backfill()
+        if not get_sentiment_by_group("Israel", "outlet"):
+            print("No sentiment data — running sentiment backfill...")
+            from backfill_sentiment import backfill_sentiment
+            backfill_sentiment()
+        if not get_social_by_group("Israel", "country"):
+            print("No social data — running social backfill...")
+            from backfill_social import backfill_social
+            backfill_social()
+        print("Bootstrap complete.")
+    except Exception as e:
+        print(f"Bootstrap error: {e}")
+
+threading.Thread(target=_bootstrap, daemon=True).start()
 
 sched = BackgroundScheduler(daemon=True)
 sched.add_job(run_daily_pipeline, "cron", hour=6, minute=0, id="daily_pipeline")
